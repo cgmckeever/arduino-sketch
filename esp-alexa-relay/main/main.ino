@@ -15,8 +15,6 @@ void setup() {
   pinMode(LED, OUTPUT);
   digitalWrite(LED, LOW); 
   delay(2000);
-  
-  
 
   if (connectWifi()) {
      Serial.println("Adding device " + deviceName);
