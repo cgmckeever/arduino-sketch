@@ -15,16 +15,17 @@ void setup(void){
   pinReset();
 
   led(LOW);
+
+  relay(LOW);
+  delay(100);
+  relay(LOW);
+
   delay(1000);
 
   if (connectWifi()) {
     delay(1000);
     espDevice();
   }
-
-  relay(LOW);
-  delay(100);
-  relay(LOW);
 }
 
 void pinReset() {
