@@ -14,11 +14,11 @@ $ which python3
 $ ln -s [path-returned-by-the-above-command] python3
 ```
 
-## Relay-A
+## Relay-A(relay-a/)
 
 ![Relay-A](relay-a/image.jpg)
 
-## Relay-B
+## [Relay-B](relay-b/)
 
 ![Relay-B](relay-b/image.jpg)
 
