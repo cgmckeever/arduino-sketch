@@ -1,3 +1,6 @@
+//
+#define DEVICENAME "SOMEBADASSNAME"
+
 // indicator LED
 #define LED 1
 
@@ -12,4 +15,5 @@ const bool inching = true;
 
 const String ssid = "YOURSSID";
 const String password = "YOURPASSWORD";
-#define DEVICENAME "SOMEBADASSNAME"
+
+

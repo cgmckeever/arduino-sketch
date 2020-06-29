@@ -1,108 +1,71 @@
 #include "constants.h"
+
 #include <ESP8266WiFi.h>
-#include <Espalexa.h>
+#include <ESPAsyncTCP.h>
+#include <fauxmoESP.h>
 
+fauxmoESP fauxmo;
+
+int pause = 1000;
+unsigned long time_now = 0;
 String deviceName = DEVICENAME;
-byte mac[6];
 
-Espalexa espalexa;
-void deviceHandler(uint8_t brightness);
 
-void setup(void){
-  pinReset();
-
-  led(LOW);
-  delay(1000);
+void setup() { 
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, LOW); 
+  delay(2000);
 
   if (connectWifi()) {
-    delay(1000);
-    espDevice();
+     Serial.println("Adding device " + deviceName);
+     fauxmo.setPort(80);  
+     fauxmo.enable(true);
+     fauxmo.addDevice(DEVICENAME);   
+     digitalWrite(LED, HIGH); 
+     pinMode(LED, INPUT);
+
+     Serial.begin(9600);
+     Serial.write(relOFF, sizeof(relOFF));
+     Serial.flush();
   }
 
-  relay(LOW);
-  delay(100);
-  relay(LOW);
-}
+  
+  fauxmo.onSetState([](unsigned char device_id, const char * device_name, 
+                    bool state, unsigned char value) {
+    if (state) {
+      Serial.write(relON, sizeof(relON));
+      Serial.flush();
 
-void pinReset() {
-  pinMode(LED, OUTPUT);
-  pinMode(RELAY, OUTPUT);
+      if (inching){
+        // delay was not keeping the relay open long enough
+        time_now = millis();
+        while(millis() < time_now + pause){
+          //wait approx. [pause] ms
+        }
+        Serial.write(relOFF, sizeof(relOFF));
+      }
+      
+    }
+    
+  });
 }
 
 boolean connectWifi() {
-  WiFi.begin(SSID, PASSWORD);
-
-  WiFi.macAddress(mac); 
-  String hostname = "fesp-" + deviceName + String(mac[3], HEX) + String(mac[4], HEX) + String(mac[5], HEX);
-  WiFi.hostname(hostname);
+  
+  
+  WiFi.begin(ssid, password);
+  WiFi.hostname("fesp-" + deviceName);
   
   while (WiFi.status() != WL_CONNECTED) {
-    flash();
+    Serial.print(".");
     delay(500);
   }
-
-  led(HIGH); 
-  log("");
-  log(hostname + " Connected - IP Address: " + WiFi.localIP().toString());
+  Serial.println(".......");
+  Serial.println("WiFi Connected....IP Address: " + WiFi.localIP());
 
   return true;
 }
 
-void espDevice() {
-  log("Adding Alexa device as " + deviceName);
-
-  espalexa.addDevice(DEVICENAME, deviceHandler);
-  espalexa.begin();
-
-  log("ESP Device Setup Complete");
-}
-
-void deviceHandler(uint8_t brightness) {
-  if (brightness > 0) {
-    relayOn();
-
-    if (inching){
-      unsigned long timeNow = millis();
-      while(millis() < timeNow + INCHINGTIME){
-        // delay was not keeping the relay open long enough
-        // wait approx. [pause] ms
-      }
-      relayOff();
-    } 
-  }
-}
-
-void relay(int state) {
-  int ledState = state == HIGH ? LOW : HIGH;
-  digitalWrite(RELAY, state);
-  led(ledState);
-}
-
-void relayOn() {
-  relay(HIGH);
-}
-
-void relayOff() {
-  relay(LOW);
-}
-
-void flash() {
-  int state = digitalRead(LED) == HIGH ? LOW : HIGH;
-  led(state);
-}
-
-void led(int state) {
-  digitalWrite(LED, state);
-}
-
-void log(String msg) {
-  Serial.begin(115200);
-  Serial.println(msg);
-  Serial.flush();
-  Serial.end();
-  pinReset();
-}
-
-void loop(void){
-  espalexa.loop();
+void loop() {
+  fauxmo.handle();
 }
