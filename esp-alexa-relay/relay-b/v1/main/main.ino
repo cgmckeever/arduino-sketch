@@ -61,7 +61,7 @@ void deviceHandler(uint8_t brightness) {
   if (brightness > 0) {
     relayOn();
 
-    if (inching){
+    if (INCHING){
       unsigned long timeNow = millis();
       while(millis() < timeNow + INCHINGTIME){
         // delay was not keeping the relay open long enough
@@ -69,6 +69,8 @@ void deviceHandler(uint8_t brightness) {
       }
       relayOff();
     } 
+  }else {
+    relayOff();
   }
 }
 

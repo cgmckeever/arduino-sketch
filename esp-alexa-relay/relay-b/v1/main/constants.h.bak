@@ -1,19 +1,14 @@
-//
-#define DEVICENAME "SOMEBADASSNAME"
+#define DEVICENAME "YOUR-DEVICE-NAME"
 
 // indicator LED
 #define LED 1
-
-// Hex command to send to serial for open relay
-const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};  
-
-// Hex command to send to serial for close relay
-const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1}; 
+#define RELAY 0
 
 // set to false to have relay stay on
-const bool inching = true;
+const bool INCHING = true;
+const int INCHINGTIME = 1000;
 
-const String ssid = "YOURSSID";
-const String password = "YOURPASSWORD";
+const String SSID = "SSID";
+const String PASSWORD = "PASSWORD";
 
 
