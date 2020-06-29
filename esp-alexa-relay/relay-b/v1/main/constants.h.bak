@@ -1,12 +1,11 @@
 #define DEVICENAME "YOUR-DEVICE-NAME"
 
-// indicator LED
 #define LED 1
 #define RELAY 0
 
 // set to false to have relay stay on
 const bool INCHING = true;
-const int INCHINGTIME = 1000;
+const unsigned long INCHINGMS = 500;
 
 const String SSID = "SSID";
 const String PASSWORD = "PASSWORD";

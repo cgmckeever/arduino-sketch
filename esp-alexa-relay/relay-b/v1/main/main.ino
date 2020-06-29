@@ -1,12 +1,15 @@
 #include "constants.h"
 #include <ESP8266WiFi.h>
 #include <Espalexa.h>
+#include <arduino-timer.h>
 
 String deviceName = DEVICENAME;
 byte mac[6];
 
 Espalexa espalexa;
 void deviceHandler(uint8_t brightness);
+
+Timer<1, millis, void *> timer;
 
 void setup(void){
   pinReset();
@@ -51,7 +54,7 @@ boolean connectWifi() {
 void espDevice() {
   log("Adding Alexa device as " + deviceName);
 
-  espalexa.addDevice(DEVICENAME, deviceHandler);
+  espalexa.addDevice(deviceName, deviceHandler);
   espalexa.begin();
 
   log("ESP Device Setup Complete");
@@ -59,33 +62,36 @@ void espDevice() {
 
 void deviceHandler(uint8_t brightness) {
   if (brightness > 0) {
-    relayOn();
+    relayOn(brightness);
 
-    if (INCHING){
-      unsigned long timeNow = millis();
-      while(millis() < timeNow + INCHINGTIME){
-        // delay was not keeping the relay open long enough
-        // wait approx. [pause] ms
-      }
-      relayOff();
+    if (INCHING) {
+      timer.in(INCHINGMS, timerCallback);
     } 
   }else {
     relayOff();
   }
 }
 
-void relay(int state) {
-  int ledState = state == HIGH ? LOW : HIGH;
-  digitalWrite(RELAY, state);
-  led(ledState);
+bool timerCallback(void *) {
+  relayOff();
+  log("Timer Called");
+  return false;
 }
 
-void relayOn() {
+void relay(int state) {
+  digitalWrite(RELAY, state);
+}
+
+void relayOn(int level) {
   relay(HIGH);
+  espalexa.getDevice(0)->setValue(level);
+  led(LOW);
 }
 
 void relayOff() {
   relay(LOW);
+  espalexa.getDevice(0)->setValue(0);
+  led(HIGH);
 }
 
 void flash() {
@@ -105,6 +111,7 @@ void log(String msg) {
   pinReset();
 }
 
-void loop(void){
+void loop(void) {
   espalexa.loop();
+  timer.tick();
 }

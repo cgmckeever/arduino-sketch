@@ -14,10 +14,14 @@
 - Connect your device
 - Enjoy
 
-## V1
+## v1
 
 - This code worked. Currently having issue with Alexa seeing the new device (2020-06)
 - fauxmoesp is no longer supported 
+
+## v2
+
+- Work in Progress based on getting relay board to work
 
 
 
