@@ -12,28 +12,28 @@ void deviceHandler(uint8_t brightness);
 Timer<1, millis, void *> timer;
 
 void setup(void){
-  pinReset();
+  pinMode(LED, OUTPUT);
+  pinMode(RELAY, OUTPUT);
 
   led(LOW);
 
-  relayOff();
+  relay(LOW);
   delay(100);
-  relayOff();
+  relay(LOW);
 
   delay(1000);
 
   if (connectWifi()) {
-    delay(1000);
     espDevice();
   }
-}
 
-void pinReset() {
-  pinMode(LED, OUTPUT);
-  pinMode(RELAY, OUTPUT);
 }
 
 boolean connectWifi() {
+  log("");
+  log("Serching for " + SSID);
+
+  WiFi.mode(WIFI_STA);
   WiFi.begin(SSID, PASSWORD);
 
   WiFi.macAddress(mac); 
@@ -46,7 +46,6 @@ boolean connectWifi() {
   }
 
   led(HIGH); 
-  log("");
   log(hostname + " Connected - IP Address: " + WiFi.localIP().toString());
 
   return true;
@@ -80,6 +79,7 @@ bool timerCallback(void *) {
 }
 
 void relay(int state) {
+  pinMode(RELAY, OUTPUT);
   digitalWrite(RELAY, state);
 }
 
@@ -101,6 +101,7 @@ void flash() {
 }
 
 void led(int state) {
+  pinMode(LED, OUTPUT);
   digitalWrite(LED, state);
 }
 
@@ -109,7 +110,6 @@ void log(String msg) {
   Serial.println(msg);
   Serial.flush();
   Serial.end();
-  pinReset();
 }
 
 void loop(void) {

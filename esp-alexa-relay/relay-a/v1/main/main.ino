@@ -13,6 +13,7 @@ byte mac[6];
 
 void setup() { 
   led(LOW);
+  delay(1000)
 
   relayOff();
   delay(100);
@@ -23,11 +24,11 @@ void setup() {
   }
 }
 
-void pinReset() {
-  pinMode(LED, OUTPUT);
-}
-
 boolean connectWifi() {
+  log("");
+  log("Serching for " + SSID);
+
+  WiFi.mode(WIFI_STA);
   WiFi.begin(SSID, PASSWORD);
 
   WiFi.macAddress(mac); 
@@ -40,7 +41,6 @@ boolean connectWifi() {
   }
 
   led(HIGH); 
-  log("");
   log(hostname + " Connected - IP Address: " + WiFi.localIP().toString());
 
   return true;
@@ -80,8 +80,11 @@ bool timerCallback(void *) {
 }
 
 void relay(const byte *state) {
+  pinMode(LED, INPUT);
+  Serial.begin(9600);
   Serial.write(state, sizeof(state));
   Serial.flush();
+  Serial.end();
 }
 
 void relayOn() {
@@ -100,6 +103,7 @@ void flash() {
 }
 
 void led(int state) {
+  pinMode(LED, OUTPUT);
   digitalWrite(LED, state);
 }
 
@@ -108,7 +112,6 @@ void log(String msg) {
   Serial.println(msg);
   Serial.flush();
   Serial.end();
-  pinReset();
 }
 
 void loop() {
