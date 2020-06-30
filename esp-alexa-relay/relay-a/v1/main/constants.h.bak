@@ -1,0 +1,14 @@
+#define DEVICENAME "DEVICE-NAME"
+
+#define LED 1
+
+// Hex command to send to serial relay
+const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};  
+const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1}; 
+
+// set to false to have relay stay on
+const bool INCHING = true;
+const unsigned long INCHINGMS = 500;
+
+const String SSID = "SSID";
+const String PASSWORD = "PASSWORD";
