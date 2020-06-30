@@ -16,9 +16,9 @@ void setup(void){
 
   led(LOW);
 
-  relay(LOW);
+  relayOff();
   delay(100);
-  relay(LOW);
+  relayOff();
 
   delay(1000);
 
