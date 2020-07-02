@@ -2,15 +2,12 @@
 #include <ESPAsyncTCP.h>
 #include <fauxmoESP.h>
 #include <ConfigManager.h>
-#include <Scheduler.h>
+#include <arduino-timer.h>
 
 fauxmoESP fauxmo;
 ConfigManager configManager;
 
-// set to false to test BLINK toggle via relay mock
-#define relayMode false
-#define toggleON() (relayMode ? relay(relON) : led(true))
-#define toggleOFF() (relayMode ? relay(relOFF) : led(false))
+Timer<1, millis, void *> timer;
 
 const char *settingsHTML = (char *)"/settings.html";
 const char *controlHTML = (char *)"/control.html";
@@ -22,44 +19,109 @@ const int DEVICENAMELEN = 32;
 struct Config {
   char deviceName[DEVICENAMELEN];
   float inchingDelay;
-  int8_t led;
+  int8_t ledPin;
 } config;
 
 struct Metadata {
-  bool triggered;
+  bool is_triggered;
 } meta;
 
-// Hex command to send to serial for open relay
-const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};  
 
-// Hex command to send to serial for close relay
+// Hex relay commands
+const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};  
 const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1}; 
 
 template<typename T>
 void debug(T &msg, bool newline = false) {
+  DEBUG_MODE = true;
+  Serial.begin(112500);
   DebugPrint(msg);
   if (newline) DebugPrintln(F(""));
+  Serial.flush();
+  Serial.end();
+}
+
+// ConfigManager
+//
+void configSetup() {
+  DEBUG_MODE = true;
+  Serial.begin(112500);
+  
+  // randomSeed(*(volatile uint32_t *)0x3FF20E44);
+  // String sApName = "ESPRELAY-" + String(random(111, 999));
+  String sApName = "ESPRELAY";
+
+  configManager.setAPName(sApName.c_str());
+  configManager.setAPFilename("/index.html");
+  configManager.setWebPort(8080);
+
+  // Config
+  configManager.addParameter("deviceName", config.deviceName, DEVICENAMELEN);
+  configManager.addParameter("inchingDelay", &config.inchingDelay);
+  configManager.addParameter("ledPin", &config.ledPin);
+  configManager.addParameter("is_triggered", &meta.is_triggered, get);
+
+  // Callbacks
+  configManager.setAPCallback(APCallback);
+  configManager.setAPICallback(APICallback);
+  configManager.begin(config);
+}
+
+void setConfigDefaults() {
+  bool requireSave = false;
+
+  char firstChar = config.deviceName[0];
+  if (firstChar == '\0' || config.deviceName == NULL || firstChar == '\xFF') {
+    strncpy(config.deviceName, "fesp-muppet", DEVICENAMELEN);
+    requireSave = true;
+  }
+
+  if (int(config.ledPin) < 0) {
+    config.ledPin = 1;
+    requireSave = true;
+  }
+
+  if (float(config.inchingDelay) < 0 || isnan(config.inchingDelay)) {
+    config.inchingDelay = 1000;
+    requireSave = true;
+  }
+
+  if (requireSave) configManager.save();
+}
+
+void printConfig() {
+  debug("Configuration: ");
+  debug(config.deviceName, true);
+
+  debug("led Pin");
+  debug(config.ledPin, true);
+
+  debug("Inching Delay: ");
+  debug(config.inchingDelay, true);
 }
 
 void APCallback(WebServer *server) {
-    server->on("/styles.css", HTTPMethod::HTTP_GET, [server](){
-        configManager.streamFile(stylesCSS, mimeCSS);
-    });
-
+    serveAssets(server);
     setConfigDefaults();
     printConfig();
 }
 
 void APICallback(WebServer *server) {
+  serveAssets(server);
+
   server->on("/disconnect", HTTPMethod::HTTP_GET, [server](){
     configManager.clearWifiSettings(false);
   });
+
+  server->on("/reset", HTTPMethod::HTTP_GET, [server](){
+    configManager.clearSettings(true);
+  });
   
-  server->on("/settings.html", HTTPMethod::HTTP_GET, [server](){
+  server->on("/config", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(settingsHTML, mimeHTML);
   });
 
-  server->on("/control.html", HTTPMethod::HTTP_GET, [server](){
+  server->on("/control", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(controlHTML, mimeHTML);
     if (tolower(server->arg("state")[1]) == 'n') {
       toggleState(true);
@@ -68,6 +130,13 @@ void APICallback(WebServer *server) {
     }
   });
   
+  setConfigDefaults();
+  printConfig();
+  fauxmoConfig();
+  led(HIGH);
+}
+
+void serveAssets(WebServer *server) {
   server->on("/styles.css", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(stylesCSS, mimeCSS);
   });
@@ -75,55 +144,18 @@ void APICallback(WebServer *server) {
   server->on("/main.js", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(mainJS, mimeJS);
   });
-
-  setConfigDefaults();
-  printConfig();
-  fauxmoConfig();
-  led(false);
-  
-  if (relayMode) {
-    serialMode();
-    toggleOFF();
-  }
 }
 
-
-void setConfigDefaults() {
-  bool requireSave = false;
-
-  char firstChar = config.deviceName[0];
-  if (firstChar == '\0' || config.deviceName == NULL || firstChar == '\xFF') {
-    strncpy(config.deviceName, "muppet", DEVICENAMELEN);
-    requireSave = true;
-  }
-
-  if (int(config.led) < 0) {
-    config.led = 2;
-    requireSave = true;
-  }
-
-  if (float(config.inchingDelay) < 0 || isnan(config.inchingDelay)) {
-    config.inchingDelay = 1;
-    requireSave = true;
-  }
-
-  if (requireSave) configManager.save();
-}
-
-void printConfig() {
-  debug("Configuration: ", true);
-  debug(config.led, true);
-  debug(config.inchingDelay, true);
-  debug(config.deviceName, true);
-}
-
+// FauxMo
+//
 void fauxmoConfig() {
+  fauxmo.createServer(true);
   fauxmo.setPort(80);  
   fauxmo.enable(true);
+  fauxmo.addDevice(config.deviceName); 
 
   debug("Device discoverable as: ");
   debug(config.deviceName, true);
-  fauxmo.addDevice(config.deviceName); 
 
   fauxmo.onSetState([](unsigned char deviceId, const char * deviceName, 
                     bool state, unsigned char value) {
@@ -137,102 +169,76 @@ void fauxmoConfig() {
  
   });
 
+  debug("ESP Setup Complete", true);
 }
 
+bool timerCallback(void *) {
+  relayOff();
+  debug("Timer Called", true);
+  return false;
+}
+
+
+// Relay 
+//
 void toggleState(bool state) {
-    if (state) {
-      toggleON();
-      meta.triggered = true;
-    } else {
-      meta.triggered = false;
-      toggleOFF();
-    }
+  if (state) {
+    relayOn();
+      
+    if (config.inchingDelay > 0) {
+      timer.in(config.inchingDelay, timerCallback);
+    } 
+  } else {
+    relayOff();
+  }
 }
 
-void relay(const byte relState[]) {
-  serialMode();
-  Serial.write(relState, sizeof(relState));
-  Serial.flush();
-}
-
-void led(bool is_on) {
-  int LED = getLED();
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, is_on ? LOW : HIGH);
-}
-
-void serialMode() {
-  pinMode(getLED(), INPUT);
-}
-
-int getLED() {
-  // NodeMCU = 2 16; ESP-01 = 1;
-  return config.led > 0 ? config.led : 2;
-}
-
-class FauxmoTask : public Task {
-protected:
-    void setup() {}
-
-    void loop() {
-        fauxmo.handle();
-    }
-} fauxmoTask;
-
-class ConfigureTask : public Task {
-protected:
-    void setup() {}
-
-    void loop() {
-        configManager.loop();
-    }
-} configureTask;
-
-class InchingTask : public Task {
-protected:
-    void setup() {}
-
-    void loop() {
-        if (meta.triggered && config.inchingDelay > 0) {
-          delay(config.inchingDelay * 1000);
-          meta.triggered = false;
-          toggleOFF();
-        }
-    }
-} inchingTask;
-
-void setup() { 
-  led(true);
-  delay(1000);
-
-  DEBUG_MODE = true;
+void relay(const byte *state) {
+  pinMode(config.ledPin, INPUT);
   Serial.begin(9600);
-
-  meta.triggered = false;
-  
-  randomSeed(*(volatile uint32_t *)0x3FF20E44);
-  String sApName = "ESPRELAY"; // -" + String(random(111, 999));
-  configManager.setAPName(sApName.c_str());
-  configManager.setAPFilename("/index.html");
-  configManager.setWebPort(8080);
-
-  // Config
-  configManager.addParameter("deviceName", config.deviceName, DEVICENAMELEN);
-  configManager.addParameter("inchingDelay", &config.inchingDelay);
-  configManager.addParameter("led", &config.led);
-
-  // Meta
-  configManager.addParameter("triggered", &meta.triggered, get);
-
-  configManager.setAPCallback(APCallback);
-  configManager.setAPICallback(APICallback);
-  configManager.begin(config);
-
-  Scheduler.start(&configureTask);
-  Scheduler.start(&fauxmoTask);
-  Scheduler.start(&inchingTask);
-  Scheduler.begin();
+  Serial.write(state, sizeof(state));
+  Serial.flush();
+  Serial.end();
 }
 
+void relayOn() {
+  relay(relON);
+  led(LOW);
+  meta.is_triggered = true;
+}
 
-void loop() {}
+void relayOff() {
+  relay(relOFF);
+  led(HIGH);
+  meta.is_triggered = false;
+}
+
+void flash() {
+  int state = digitalRead(config.ledPin) == HIGH ? LOW : HIGH;
+  led(state);
+}
+
+void led(int state) {
+  pinMode(config.ledPin, OUTPUT);
+  digitalWrite(config.ledPin, state);
+}
+
+// Main 
+//
+void setup() { 
+  relayOff();
+  delay(100);
+  relayOff();
+
+  configSetup();
+
+  led(LOW);
+  delay(2000);
+  led(HIGH);
+}
+
+void loop() {
+  configManager.loop();
+  fauxmo.handle();
+  timer.tick();
+}
