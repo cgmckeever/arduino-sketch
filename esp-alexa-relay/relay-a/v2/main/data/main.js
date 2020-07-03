@@ -1,19 +1,6 @@
 $( document ).ready(function() {
 
-  var validationSettings = {
-    rules: {
-      device_name: {
-        required: true
-      },
-      inching_delay: {
-        required: true
-      },
-      led: {
-        required: true
-      }
-    }
-  };
-
+  // get the config store
   $.ajax({
          url: '/settings',
          success: function(data) {
@@ -25,7 +12,7 @@ $( document ).ready(function() {
                if ( target.is("input") ) {
                 target.val(value);
                } else {
-                if (key == "triggered") {
+                if (key == "isTriggered") {
                   if (value) {
                     value = "On";
                     var button = $('button[value="on"]')
@@ -41,6 +28,20 @@ $( document ).ready(function() {
            });
          }
   });
+
+  var validationSettings = {
+    rules: {
+      deviceName: {
+        required: true
+      },
+      inchingDelay: {
+        required: true
+      },
+      ledPin: {
+        required: true
+      }
+    }
+  };
 
   $.fn.serializeObject = function() {
     var o = {};
@@ -66,14 +67,11 @@ $( document ).ready(function() {
   var settingForm = '[name="settingsForm"]';
   $(settingForm).validate(validationSettings);
   $(settingForm).on('submit', function(e) {
-    var target = $("[name='status']");
-    target.innerHTML = "";
+    document.getElementById("status").innerHTML = ""
     if($(this).valid()) {
       e.preventDefault();
-
       var formData = $(this).serializeObject();
 
-      // Send data as a PUT request
       $.ajax({
              url: '/settings',
              type: 'PUT',
@@ -81,7 +79,7 @@ $( document ).ready(function() {
              contentType: 'application/json',
              success: function(data) {
                console.log(formData);
-               target.getElementById("status").innerHTML = "Settings Updated"
+               document.getElementById("status").innerHTML = "Settings Updated"
              }
       });
 

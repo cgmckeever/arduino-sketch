@@ -13,16 +13,16 @@
       <h1 style="text-align: center;">Settings</h1>
       <form method="post" action="/settings" name="settingsForm">
         <div class="field-group">
-          <label>Device Name</label>
+          <label>Device Name (Discovered by Alexa)</label>
           <input name="deviceName" type="text" size="32" data-type="text">
         </div>
         <div class="field-group">
-          <label>Inching Delay Seconds</label>
+          <label>Inching Delay (milliseconds)</label>
           <input name="inchingDelay" type="text" size="5" data-type="number">
         </div>
         <div class="field-group">
-          <label>Device LED</label>
-          <input name="led" type="text" size="5" data-type="number">
+          <label>Device LED Pin Number</label>
+          <input name="ledPin" type="text" size="5" data-type="number">
         </div>
         <div class="button-container">
           <h2 style="" id="status"></h2>

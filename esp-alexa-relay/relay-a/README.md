@@ -16,12 +16,13 @@
 
 ## v1
 
-- This code worked. Currently having issue with Alexa seeing the new device (2020-06)
+- Code currently working
 - fauxmoesp is no longer supported 
 
 ## v2
 
-- Work in Progress based on getting relay board to work
+- Built-in web based configuration and relay-control
+- Requires [ConfigManager](https://github.com/nrwiersma/ConfigManager)
 
 
 
