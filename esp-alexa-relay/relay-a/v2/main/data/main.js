@@ -12,7 +12,7 @@ $( document ).ready(function() {
                if ( target.is("input") ) {
                 target.val(value);
                } else {
-                if (key == "is_triggered") {
+                if (key == "isTriggered") {
                   if (value) {
                     value = "On";
                     var button = $('button[value="on"]')
@@ -31,10 +31,10 @@ $( document ).ready(function() {
 
   var validationSettings = {
     rules: {
-      device_name: {
+      deviceName: {
         required: true
       },
-      inching_delay: {
+      inchingDelay: {
         required: true
       },
       ledPin: {

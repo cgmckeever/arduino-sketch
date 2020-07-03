@@ -10,7 +10,8 @@ ConfigManager configManager;
 Timer<1, millis, void *> timer;
 
 const char *settingsHTML = (char *)"/settings.html";
-const char *controlHTML = (char *)"/control.html";
+const char *relayHTML = (char *)"/relay.html";
+const char *resetHTML = (char *)"/reset.html";
 const char *stylesCSS = (char *)"/styles.css";
 const char *mainJS = (char *)"/main.js";
 
@@ -23,7 +24,7 @@ struct Config {
 } config;
 
 struct Metadata {
-  bool is_triggered;
+  bool isTriggered;
 } meta;
 
 
@@ -46,7 +47,7 @@ void debug(T &msg, bool newline = false) {
 void configSetup() {
   DEBUG_MODE = true;
   Serial.begin(112500);
-  
+
   // randomSeed(*(volatile uint32_t *)0x3FF20E44);
   // String sApName = "ESPRELAY-" + String(random(111, 999));
   String sApName = "ESPRELAY";
@@ -59,7 +60,7 @@ void configSetup() {
   configManager.addParameter("deviceName", config.deviceName, DEVICENAMELEN);
   configManager.addParameter("inchingDelay", &config.inchingDelay);
   configManager.addParameter("ledPin", &config.ledPin);
-  configManager.addParameter("is_triggered", &meta.is_triggered, get);
+  configManager.addParameter("isTriggered", &meta.isTriggered, get);
 
   // Callbacks
   configManager.setAPCallback(APCallback);
@@ -114,6 +115,13 @@ void APICallback(WebServer *server) {
   });
 
   server->on("/reset", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(resetHTML, mimeHTML);
+    configManager.clearSettings(false);
+  });
+
+  server->on("/wipe", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(resetHTML, mimeHTML);
+    configManager.clearWifiSettings(false);
     configManager.clearSettings(true);
   });
   
@@ -121,8 +129,8 @@ void APICallback(WebServer *server) {
     configManager.streamFile(settingsHTML, mimeHTML);
   });
 
-  server->on("/control", HTTPMethod::HTTP_GET, [server](){
-    configManager.streamFile(controlHTML, mimeHTML);
+  server->on("/relay", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(relayHTML, mimeHTML);
     if (tolower(server->arg("state")[1]) == 'n') {
       toggleState(true);
     } else {
@@ -172,13 +180,6 @@ void fauxmoConfig() {
   debug("ESP Setup Complete", true);
 }
 
-bool timerCallback(void *) {
-  relayOff();
-  debug("Timer Called", true);
-  return false;
-}
-
-
 // Relay 
 //
 void toggleState(bool state) {
@@ -193,6 +194,12 @@ void toggleState(bool state) {
   }
 }
 
+bool timerCallback(void *) {
+  relayOff();
+  debug("Timer Called", true);
+  return false;
+}
+
 void relay(const byte *state) {
   pinMode(config.ledPin, INPUT);
   Serial.begin(9600);
@@ -204,15 +211,17 @@ void relay(const byte *state) {
 void relayOn() {
   relay(relON);
   led(LOW);
-  meta.is_triggered = true;
+  meta.isTriggered = true;
 }
 
 void relayOff() {
   relay(relOFF);
   led(HIGH);
-  meta.is_triggered = false;
+  meta.isTriggered = false;
 }
 
+// LED
+//
 void flash() {
   int state = digitalRead(config.ledPin) == HIGH ? LOW : HIGH;
   led(state);
