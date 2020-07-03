@@ -122,7 +122,8 @@ void APICallback(WebServer *server) {
   server->on("/wipe", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(resetHTML, mimeHTML);
     configManager.clearWifiSettings(false);
-    configManager.clearSettings(true);
+    configManager.clearSettings(false);
+    ESP.restart();
   });
   
   server->on("/config", HTTPMethod::HTTP_GET, [server](){
