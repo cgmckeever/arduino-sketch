@@ -13,6 +13,9 @@ $ rm python3
 $ which python3
 $ ln -s [path-returned-by-the-above-command] python3
 ```
+## [Basic Code](basic/)
+
+Simple code to test a board to ensure the relay works.
 
 ## [Relay-A](relay-a/)
 

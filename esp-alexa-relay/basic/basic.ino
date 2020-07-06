@@ -5,6 +5,10 @@ int ledPin = 1;
 int relayPin = 0;
 
 void setup() {
+  setupA();
+}
+
+void setupA(){
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
   delay(5000);
@@ -12,7 +16,11 @@ void setup() {
 }
 
 void serialMode() {
-  Serial.begin(9600);
+  serialCMD(9600);
+}
+
+void serialCMD(int baud) {
+  Serial.begin(baud);
   Serial.write(relON, sizeof(relON));
   Serial.flush();
   delay(2000);
@@ -36,6 +44,12 @@ void digitalMode() {
   delay(2000);
 }
 
+void led() {
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, !digitalRead(ledPin));
+}
+
 void loop(void){
-  digitalMode();
+  serialMode();
+  //digitalMode();
 }
