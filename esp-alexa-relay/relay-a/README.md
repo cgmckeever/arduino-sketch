@@ -5,7 +5,10 @@
 - There seem to be many versions of this board. I have confirmed the one labeled as v3 (marking on back) works
 out of the box with no module modification (outside custom ESP code). 
 
-- There may be one version labeled [HW-655](https://www.youtube.com/watch?v=D470BrL15wA), that looks to work out of the box as well
+- There may be one version labeled [HW-655](https://www.youtube.com/watch?v=D470BrL15wA), that looks to work out 
+of the box as well. 
+    - *UPDATE* 2020-07 just recieved one, and it did not work out of the box in either digital or serial modes.  
+May try the controller flash (below) to OCD all the things.
 
 - Finally, many knock-offs of this board exist. One idenitifcation of a knock-off is a continual LED flashing on the module
 but the relay code does not work. There is a very [in-depth conversation](https://www.esp8266.com/viewtopic.php?f=160&t=13164) about this, as well as all over the rest of the internet. There is a fix to [flash the onboard-mcu (STC15F104W)](https://www.esp8266.com/viewtopic.php?f=160&t=13164&start=68#p74262). The referenced HEX code there does not appear to work, but another user posted an [updated version](https://www.esp8266.com/viewtopic.php?f=160&t=13164&start=96#p81907) that does work. Additionally, you can follow that thread on how to modify the board (remove the micrcontroler, solder some jumpers) and control it with one of the GPIO - this process is hard for the novice solderer.
