@@ -3,9 +3,6 @@
 //
 //////////
 
-#include "esp_camera.h"
-#include "camera_pins.h"
-
 #define WIDTH 320
 #define HEIGHT 240
 #define BLOCK_SIZE 10
@@ -18,10 +15,11 @@
 #define MOTION_DEBUG 0
 #endif
 
-
 uint16_t prev_frame[H][W] = { 0 };
 uint16_t current_frame[H][W] = { 0 };
 bool is_capture = true;
+time_t lastAlertAt;
+int alertSleep = 300;
 
 bool setup_camera();
 
@@ -31,8 +29,15 @@ void update_frame();
 
 void print_frame(uint16_t frame[H][W]);
 void print_state(uint16_t changes, uint16_t blocks);
-void print_settings(sensor_t * sensor);
 
+void sendMotionAlert(String file);
+String takePicture();
+
+#include "esp_camera.h"
+#include "camera_pins.h"
+
+#include "ESP32_MailClient.h"
+SMTPData smtpMotion;
 
 /**
  *
@@ -42,11 +47,17 @@ void motion_loop() {
 
     if (!capture_still()) {
         Serial.println("Failed capture");
-        delay(3000);
         return;
     }
 
-    if (motion_detect()) Serial.println("Motion detected");
+    if (motion_detect()) {
+        Serial.println("Motion detected");
+
+        if (time(NULL) - lastAlertAt > alertSleep) {
+            lastAlertAt = time(NULL);
+            takePicture();
+        }
+    }
 
     update_frame();
 }
@@ -56,6 +67,8 @@ void motion_loop() {
  *
  */
 bool setup_camera() {
+    lastAlertAt = time(NULL);
+
     camera_config_t config;
 
     config.ledc_channel = LEDC_CHANNEL_0;
@@ -87,41 +100,62 @@ bool setup_camera() {
     //config.pixel_format = PIXFORMAT_JPEG;
 
     return esp_camera_init(&config) == ESP_OK;
+}  
+
+String takePicture() {
+    is_capture = false;
+    sensor_t * sensor = esp_camera_sensor_get();
+    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
+    sensor->set_framesize(sensor, FRAMESIZE_UXGA);
+
+    String path = "";
+
+    //pinMode(4, OUTPUT);           
+    //digitalWrite(4, HIGH);
+
+    camera_fb_t * fb = esp_camera_fb_get(); 
+
+    //pinMode(4, INPUT);   
+    //digitalWrite(4, LOW);  
+
+    if (fb) {
+        path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
+        path = writeFile(fb->buf, fb->len, path);
+        esp_camera_fb_return(fb);
+    }
+
+    //sensor->set_pixformat(sensor, PIXFORMAT_GRAYSCALE);
+    //sensor->set_framesize(sensor, FRAMESIZE_QVGA);
+    is_capture = true;
+
+    sendMotionAlert(path);
+
+    return path;
 }
 
-void print_settings(sensor_t * sensor) {
-    Serial.println("=====================");
-    Serial.println(sensor->status.framesize);
-    Serial.println(sensor->status.quality);
-    Serial.println(sensor->status.brightness);
-    Serial.println(sensor->status.contrast);
-    Serial.println(sensor->status.saturation);
-    Serial.println(sensor->status.sharpness);
-    Serial.println(sensor->status.special_effect);
-    Serial.println(sensor->status.wb_mode);
-    Serial.println(sensor->status.awb);
-    Serial.println(sensor->status.awb_gain);
-    Serial.println(sensor->status.aec);
-    Serial.println(sensor->status.aec2);
-    Serial.println(sensor->status.ae_level);
-    Serial.println(sensor->status.aec_value);
-    Serial.println(sensor->status.agc);
-    Serial.println(sensor->status.agc_gain);
-    Serial.println(sensor->status.gainceiling);
-    Serial.println(sensor->status.bpc);
-    Serial.println(sensor->status.wpc);
-    Serial.println(sensor->status.raw_gma);
-    Serial.println(sensor->status.lenc);
-    Serial.println(sensor->status.vflip);
-    Serial.println(sensor->status.hmirror);
-    Serial.println(sensor->status.dcw);
-    Serial.println(sensor->status.colorbar);
+bool captureCallback(void *) {
+    takePicture();
+    return false;
 }
+static esp_err_t captureHandler(httpd_req_t *req){
+    is_capture = false;
+    const char resp[] = "Photo Taken";
+    httpd_resp_send(req, resp, strlen(resp));
+    
+    timer.in(2000, captureCallback);
+    return ESP_OK;
+}
+void registerCapture() {
+  httpd_uri_t uri = {
+    .uri       = "/capture",
+    .method    = HTTP_GET,
+    .handler   = captureHandler,
+    .user_ctx  = NULL
+  };
   
+  httpd_register_uri_handler(server, &uri);
+}
 
-/**
- * Capture image and do down-sampling
- */
 bool capture_still() {
     sensor_t * sensor = esp_camera_sensor_get();
     sensor->set_pixformat(sensor, PIXFORMAT_GRAYSCALE);
@@ -200,6 +234,33 @@ bool motion_detect() {
     }
 
     return motion_detected;
+}
+
+void sendMotionAlert(String file) {
+    smtpMotion.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
+    smtpMotion.setSender("ESP32", emailSenderAccount);
+    smtpMotion.addRecipient(emailAlertAddress);
+    smtpMotion.setPriority("High");
+    smtpMotion.setSubject("Motion Detected " + file);
+
+    // Set the message with HTML format
+    smtpMotion.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
+
+    if (file != "") {
+        //MailClient.sdBegin(14, 2, 15, 13);
+        Serial.println("Attaching: " + file);
+        smtpMotion.addAttachFile(file, "image/jpg");
+        smtpMotion.setFileStorageType(MailClientStorageType::SD);   
+    }
+
+
+    if (MailClient.sendMail(smtpMotion)) {
+        Serial.println("Alert Sent");
+    } else {
+        Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+    }
+
+    smtpMotion.empty();
 }
 
 
