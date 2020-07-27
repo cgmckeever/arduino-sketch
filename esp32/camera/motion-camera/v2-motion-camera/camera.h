@@ -40,7 +40,13 @@ camera_fb_t* capture() {
     sensor_t *sensor = esp_camera_sensor_get();
     sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
     sensor->set_framesize(sensor, FRAMESIZE_UXGA);
-    camera_fb_t *fb = esp_camera_fb_get();
+
+    gpio_pad_select_gpio(GPIO_NUM_4);
+    gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);
+
+    gpio_set_level(GPIO_NUM_4, 1);
+    camera_fb_t *fb = esp_camera_fb_get(); 
+    gpio_set_level(GPIO_NUM_4, 0);
 
     if (!fb) Serial.println("Camera capture failed");
 

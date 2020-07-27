@@ -43,7 +43,6 @@ void capture_and_save() {
             smtpMotion.addAttachData(path, "image/jpg", fb->buf, fb->len);
         }
 
-
         if (MailClient.sendMail(smtpMotion)) {
             Serial.println("Alert Sent");
         } else {
@@ -51,6 +50,7 @@ void capture_and_save() {
         }
 
         smtpMotion.empty();
+
         esp_camera_fb_return(fb);
     }
 }
