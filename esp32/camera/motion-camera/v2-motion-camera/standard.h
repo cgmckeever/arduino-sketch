@@ -1,7 +1,6 @@
 #include "constants.h"
 #include <WiFi.h>
 
-
 // Brownout Handler
 //
 #include "soc/soc.h"
@@ -13,12 +12,25 @@
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 
+// SD
+//
 #include "SD.h" 
 bool sdEnabled = false;
 
+// eMail
+//
 #include "ESP32_MailClient.h"
 SMTPData smtpMotion;
 
+// HTTP Server
+//
+#include "esp_http_server.h"
+httpd_handle_t server = NULL;
+
+// Timer
+//
+#include <arduino-timer.h>
+Timer<1, millis, void *> timer;
 
 void startWifi() {
     //disable brownout detector
@@ -92,4 +104,37 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
     }
 
     return path;
+}
+
+bool resetCallback(void *) {
+    ESP.restart();
+    Serial.println('Rebooting...');
+    return false;
+}
+static esp_err_t resetHandler(httpd_req_t *req) {
+    const char resp[] = "Rebooting";
+    httpd_resp_send(req, resp, strlen(resp));
+    timer.in(2000, resetCallback);
+    return ESP_OK;
+}
+void registerReset() {
+    httpd_uri_t uri = {
+    .uri       = "/reset",
+    .method    = HTTP_GET,
+    .handler   = resetHandler,
+    .user_ctx  = NULL
+  };
+  
+  httpd_register_uri_handler(server, &uri);
+}
+
+void initHTTP(int port = 80) {
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.server_port = port;
+    httpd_start(&server, &config);
+
+    registerReset();
+
+    Serial.print("Ready at: http://");
+    Serial.println(WiFi.localIP());
 }

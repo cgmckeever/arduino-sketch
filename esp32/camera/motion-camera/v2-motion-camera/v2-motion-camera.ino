@@ -14,11 +14,14 @@ void setup(void) {
     setTime();
 
     initCamera();
+
+    initHTTP();
+    registerCameraServer();
 }
 
 void loop() {
-    delay(10000);
-    capture_and_save();
+    delay(1);
+    timer.tick();
 }
 
 

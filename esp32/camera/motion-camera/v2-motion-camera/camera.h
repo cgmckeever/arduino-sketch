@@ -1,5 +1,6 @@
 #include "esp_camera.h"
 #include "camera_pins.h"
+#include "html.h"
 
 bool cameraOK = false;
 
@@ -51,4 +52,24 @@ camera_fb_t* capture() {
     if (!fb) Serial.println("Camera capture failed");
 
     return fb;
+}
+
+
+static esp_err_t indexHandler(httpd_req_t *req){
+    Serial.println('/index');
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+
+    return httpd_resp_send(req, (const char *)index_html_gz, index_html_gz_len);
+}
+void registerCameraServer(int port = 80){
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+
+    httpd_uri_t indexURI = {
+        .uri       = "/",
+        .method    = HTTP_GET,
+        .handler   = indexHandler,
+        .user_ctx  = NULL
+    };
+    httpd_register_uri_handler(server, &indexURI);
 }
