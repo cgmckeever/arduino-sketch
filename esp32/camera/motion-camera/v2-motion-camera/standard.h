@@ -16,13 +16,13 @@ NTPClient timeClient(ntpUDP);
 
 // SD
 //
-#include "SD_MMC.h" 
+//#include "SD_MMC.h" 
+#include "SD.h" 
 bool sdEnabled = false;
 
 // eMail
 //
 #include "ESP32_MailClient.h"
-SMTPData smtpMotion;
 
 // HTTP Server
 //
@@ -67,24 +67,26 @@ void setTime() {
 bool initSD() {
     if (sdEnabled) return sdEnabled;
 
-    if(!SD_MMC.begin() || SD_MMC.cardType() == CARD_NONE) {
+    SPI.begin(14, 2, 15, 13);
+    if(!SD.begin(13) || SD.cardType() == CARD_NONE) {
         Serial.println("SD Card Mount Failed");
         return false;
     }
 
     Serial.println("SD Card Detected.");
     sdEnabled = true;
-    return true;
+    return sdEnabled;
 }
 
 bool closeSD() {
-    SD_MMC.end();
+    SD.end();
+    SPI.end();
     sdEnabled = false;
 }
 
 String saveFile(unsigned char *buf, unsigned int len, String path) {
-    if (initSD()) {
-        fs::FS &fs = SD_MMC;
+    if (sdEnabled) {
+        fs::FS &fs = SD;
         Serial.printf("Picture file name: %s\n", path.c_str());
 
         File handle = fs.open(path.c_str(), FILE_WRITE);
@@ -96,9 +98,8 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
             Serial.printf("Saved file to path: %s\n", path.c_str());
             handle.close();
         }
-        closeSD();
     } else {
-        Serial.println("No SD Card Attached");
+        Serial.println("No SD Card Attached/Initialized");
         path = "";
     }
 

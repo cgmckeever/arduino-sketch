@@ -15,12 +15,14 @@ Timer<5, millis, argsSend*> sendTimer;
 
 void setup(void) {
     Serial.begin(115200);
+    initSD();
 
     startWifi();
     timeClient.begin();
     setTime();
 
     initCamera();
+    flash(false);
 
     initHTTP(80);
     registerCameraServer(81);
@@ -42,7 +44,10 @@ void save_and_send(uint8_t* buf, size_t len) {
     if (buf) {
         String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
         path = saveFile(buf, len, path); 
+        if (path == "") Serial.println("Photo failed to save.");
+        flash(false);
 
+        SMTPData smtpMotion;
         smtpMotion.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
         smtpMotion.setSender("ESP32", emailSenderAccount);
         smtpMotion.addRecipient(emailAlertAddress);
@@ -50,21 +55,14 @@ void save_and_send(uint8_t* buf, size_t len) {
         smtpMotion.setSubject("Motion Detected " + path);
         smtpMotion.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
-        if (path == "") {
-            Serial.println("Photo failed to save.");
-        } else {
-            Serial.println("Attaching: " + path);
-            smtpMotion.addAttachData(path, "image/jpg", buf, len);
-        }
+        Serial.println("Attaching: " + path);
+        smtpMotion.addAttachData(path, "image/jpg", buf, len);
 
         if (MailClient.sendMail(smtpMotion)) {
             Serial.println("Alert Sent");
-        } else {
-            Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
-        }
+        } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
 
         smtpMotion.empty();
-        buf = NULL;
     } else Serial.println("No Capture Returned");
 }
 
@@ -96,10 +94,9 @@ static esp_err_t captureHandler(httpd_req_t *req){
     argsSend *args = new argsSend();
     args->buf = buf;
     args->len = len;
-    sendTimer.in(2, sendCallback, args);
+    sendTimer.in(4000, sendCallback, args);
 
     esp_err_t res = httpd_resp_send(req, (const char *)buf, len);
-    buf = NULL;
 
     return res;
 }
@@ -138,11 +135,10 @@ static esp_err_t streamHandler(httpd_req_t *req){
         }
     }
 
-    buf = NULL;
     Serial.println("end stream");
     return res;
 }
-void registerCameraServer(int streamPort){
+void registerCameraServer(int streamPort) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = streamPort;
     config.ctrl_port = streamPort * 1000 + streamPort;
