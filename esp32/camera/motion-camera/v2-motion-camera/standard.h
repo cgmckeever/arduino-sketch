@@ -106,7 +106,7 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
     return path;
 }
 
-bool resetCallback(void *) {
+bool rebootCallback(void *) {
     ESP.restart();
     Serial.println('Rebooting...');
     return false;
@@ -117,9 +117,9 @@ static esp_err_t resetHandler(httpd_req_t *req) {
     timer.in(2000, resetCallback);
     return ESP_OK;
 }
-void registerReset() {
+void registerReboot() {
     httpd_uri_t uri = {
-    .uri       = "/reset",
+    .uri       = "/reboot",
     .method    = HTTP_GET,
     .handler   = resetHandler,
     .user_ctx  = NULL
