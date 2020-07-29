@@ -1,4 +1,6 @@
 #include "constants.h"
+#include <tuple>
+#include <iostream>
 #include <WiFi.h>
 
 // Brownout Handler
@@ -14,7 +16,7 @@ NTPClient timeClient(ntpUDP);
 
 // SD
 //
-#include "SD.h" 
+#include "SD_MMC.h" 
 bool sdEnabled = false;
 
 // eMail
@@ -65,9 +67,7 @@ void setTime() {
 bool initSD() {
     if (sdEnabled) return sdEnabled;
 
-    SPI.begin(14, 2, 15, 13);
-
-    if(!SD.begin(13) || SD.cardType() == CARD_NONE) {
+    if(!SD_MMC.begin() || SD_MMC.cardType() == CARD_NONE) {
         Serial.println("SD Card Mount Failed");
         return false;
     }
@@ -78,14 +78,13 @@ bool initSD() {
 }
 
 bool closeSD() {
-    SD.end();
-    SPI.end();
+    SD_MMC.end();
     sdEnabled = false;
 }
 
 String saveFile(unsigned char *buf, unsigned int len, String path) {
     if (initSD()) {
-        fs::FS &fs = SD;
+        fs::FS &fs = SD_MMC;
         Serial.printf("Picture file name: %s\n", path.c_str());
 
         File handle = fs.open(path.c_str(), FILE_WRITE);
@@ -128,7 +127,7 @@ void registerReset() {
   httpd_register_uri_handler(server, &uri);
 }
 
-void initHTTP(int port = 80) {
+void initHTTP(int port=80) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = port;
     httpd_start(&server, &config);
