@@ -1,5 +1,6 @@
 //
 // https://github.com/eloquentarduino/EloquentArduino/tree/master/examples/ESP32CameraNaiveMotionDetection
+// https://gist.github.com/eloquentarduino/6bb0b26a3900d7fac68b2f3cc7b2c688
 //
 //////////
 

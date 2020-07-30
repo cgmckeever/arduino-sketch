@@ -2,10 +2,9 @@
 #include "camera_pins.h"
 #include "html.h"
 
-
-#include "fb_gfx.h"
 #include "fd_forward.h"
-#include "fr_forward.h"
+
+void getSettings();
 
 bool cameraOK = false;
 
@@ -51,6 +50,11 @@ void flash(bool on) {
 void capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
 
+    sensor_t *sensor = esp_camera_sensor_get();
+    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
+    sensor->set_framesize(sensor, sensor->status.framesize);
+    getSettings();
+
     camera_fb_t *fb = esp_camera_fb_get(); 
     _jpg_buf = fb->buf;
     
@@ -65,28 +69,34 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
     bool captured = false;
     _jpg_buf_len = 0;
     _jpg_buf = NULL;
+    dl_matrix3du_t *image_matrix = NULL;
 
+    sensor_t *sensor = esp_camera_sensor_get();
+    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
+    sensor->set_framesize(sensor, sensor->status.framesize);
+    
     camera_fb_t *fb = esp_camera_fb_get();
 
     if (fb) {
         if(fb->width > 400) {
             if(fb->format != PIXFORMAT_JPEG) {
-                if(frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len)) {
-                    captured = true;
-                } else Serial.println("JPEG compression failed");
+                if(!frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len)) {
+                    Serial.println("JPEG compression failed");
+                }
             } else captured = true;
         } else {
-            dl_matrix3du_t *image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
+            image_matrix = dl_matrix3du_alloc(1, fb->width, fb->height, 3);
             if (image_matrix) {
                 if(fmt2rgb888(fb->buf, fb->len, fb->format, image_matrix->item)) {
                     if (fb->format != PIXFORMAT_JPEG) {
-                        if(fmt2jpg(image_matrix->item, fb->width*fb->height*3, fb->width, fb->height, PIXFORMAT_RGB888, 90, &_jpg_buf, &_jpg_buf_len)) {
-                            captured = true;
-                        } else Serial.println("fmt2jpg failed");
+                        if(!fmt2jpg(image_matrix->item, fb->width*fb->height*3, fb->width, fb->height, PIXFORMAT_RGB888, 90, &_jpg_buf, &_jpg_buf_len)) {
+                            Serial.println("fmt2jpg failed");
+                        }
                     } else captured = true;
                 }
+                dl_matrix3du_free(image_matrix);
             }
-            dl_matrix3du_free(image_matrix);
+            
         }
 
         if (captured) {
@@ -96,4 +106,16 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
         esp_camera_fb_return(fb);
         fb = NULL;
     } else Serial.println("Camera capture failed");
+}
+
+void getSettings() {
+    sensor_t * sensor = esp_camera_sensor_get();
+
+    Serial.print("Framesize: ");
+    Serial.println(sensor->status.framesize);
+    Serial.print("Quality: ");
+    Serial.println(sensor->status.quality);
+    Serial.print("Effect: ");
+    Serial.println(sensor->status.special_effect);
+    Serial.println("=================================");
 }

@@ -4,7 +4,9 @@ void registerCameraServer(int);
 #include "standard.h"
 
 #define CAMERA_MODEL_AI_THINKER
+void motionSettings();
 #include "camera.h"
+#include "motion.h"
 
 
 struct argsSend {
@@ -12,6 +14,7 @@ struct argsSend {
     size_t len;
 };
 Timer<5, millis, argsSend*> sendTimer;
+Timer<1, millis, void*> motionTimer;
 
 void setup(void) {
     Serial.begin(115200);
@@ -26,14 +29,23 @@ void setup(void) {
 
     initHTTP(80);
     registerCameraServer(81);
+
+    //motionTimer.every(3000, timedMotion);
 }
 
 void loop() {
-    timer.tick();
     sendTimer.tick();
+    motionTimer.tick();
+    timer.tick();
+    motionDetect();
 }
 
-bool sendCallback(argsSend *args) {
+bool timedMotion(void *) {
+    motionDetect();
+    return true;
+}
+
+bool timedSend(argsSend *args) {
     Serial.println("Delay Send");
     save_and_send(args->buf, args->len);
     delete args;
@@ -47,22 +59,22 @@ void save_and_send(uint8_t* buf, size_t len) {
         if (path == "") Serial.println("Photo failed to save.");
         flash(false);
 
-        SMTPData smtpMotion;
-        smtpMotion.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
-        smtpMotion.setSender("ESP32", emailSenderAccount);
-        smtpMotion.addRecipient(emailAlertAddress);
-        smtpMotion.setPriority("High");
-        smtpMotion.setSubject("Motion Detected " + path);
-        smtpMotion.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
+        SMTPData smtp;
+        smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
+        smtp.setSender("ESP32", emailSenderAccount);
+        smtp.addRecipient(emailAlertAddress);
+        smtp.setPriority("High");
+        smtp.setSubject("Motion Detected " + path);
+        smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
         Serial.println("Attaching: " + path);
-        smtpMotion.addAttachData(path, "image/jpg", buf, len);
+        smtp.addAttachData(path, "image/jpg", buf, len);
 
-        if (MailClient.sendMail(smtpMotion)) {
+        if (MailClient.sendMail(smtp)) {
             Serial.println("Alert Sent");
         } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
 
-        smtpMotion.empty();
+        smtp.empty();
     } else Serial.println("No Capture Returned");
 }
 
@@ -76,16 +88,17 @@ static esp_err_t indexHandler(httpd_req_t *req){
 
 static esp_err_t captureHandler(httpd_req_t *req){
     Serial.println("/capture");
+    disableMotion = true;
     
     uint8_t* buf;
     size_t len;
     sensor_t *sensor = esp_camera_sensor_get();
-    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
     sensor->set_framesize(sensor, FRAMESIZE_UXGA);
 
     //flash(true);
     get_chunk(buf, len);
     flash(false);
+    disableMotion = false;
     
     httpd_resp_set_type(req, "image/jpeg");
     httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
@@ -94,7 +107,7 @@ static esp_err_t captureHandler(httpd_req_t *req){
     argsSend *args = new argsSend();
     args->buf = buf;
     args->len = len;
-    sendTimer.in(4000, sendCallback, args);
+    sendTimer.in(4000, timedSend, args);
 
     esp_err_t res = httpd_resp_send(req, (const char *)buf, len);
 
@@ -108,6 +121,7 @@ static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 static esp_err_t streamHandler(httpd_req_t *req){
     Serial.println("/stream");
+    disableMotion = true;
     
     uint8_t* buf;
     size_t len;
@@ -136,6 +150,7 @@ static esp_err_t streamHandler(httpd_req_t *req){
     }
 
     Serial.println("end stream");
+    disableMotion = false;
     return res;
 }
 void registerCameraServer(int streamPort) {

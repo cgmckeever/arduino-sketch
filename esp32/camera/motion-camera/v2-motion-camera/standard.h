@@ -114,7 +114,7 @@ bool rebootCallback(void *) {
 static esp_err_t resetHandler(httpd_req_t *req) {
     const char resp[] = "Rebooting";
     httpd_resp_send(req, resp, strlen(resp));
-    timer.in(2000, resetCallback);
+    timer.in(2000, rebootCallback);
     return ESP_OK;
 }
 void registerReboot() {
@@ -133,7 +133,7 @@ void initHTTP(int port=80) {
     config.server_port = port;
     httpd_start(&server, &config);
 
-    registerReset();
+    registerReboot();
 
     Serial.print("Ready at: http://");
     Serial.println(WiFi.localIP());
