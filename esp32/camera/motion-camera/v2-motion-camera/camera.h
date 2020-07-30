@@ -29,7 +29,8 @@ bool initCamera() {
     config.pin_sscb_scl = SIOC_GPIO_NUM;
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
-    config.xclk_freq_hz = 20000000;
+    //config.xclk_freq_hz = 20000000;
+    config.xclk_freq_hz = 5000000; 
 
     config.jpeg_quality = 10;
     config.fb_count = 1;
@@ -50,16 +51,17 @@ void flash(bool on) {
 void capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
 
-    sensor_t *sensor = esp_camera_sensor_get();
-    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
-    sensor->set_framesize(sensor, sensor->status.framesize);
-    getSettings();
-
-    camera_fb_t *fb = esp_camera_fb_get(); 
-    _jpg_buf = fb->buf;
+    camera_fb_t *fb = esp_camera_fb_get();
+    //esp_camera_fb_return(fb);
+    //fb = esp_camera_fb_get();
     
     if (fb) {
-        _jpg_buf_len = fb->len;
+        if(fb->format != PIXFORMAT_JPEG) {
+            frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
+        } else {
+            _jpg_buf = fb->buf;
+            _jpg_buf_len = fb->len;
+        }
         esp_camera_fb_return(fb);
         fb = NULL;
     } else Serial.println("Camera capture failed");

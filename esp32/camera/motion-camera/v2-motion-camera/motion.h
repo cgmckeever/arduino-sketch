@@ -8,56 +8,69 @@
 // based on framesize
 //
 ////
-#define WIDTH 320
-#define HEIGHT 240
-#define BLOCK_SIZE 20
+#define WIDTH 640
+#define HEIGHT 480
+#define BLOCK_SIZE 10
+#define MOTION_FRAME FRAMESIZE_VGA
 
 #define W (WIDTH / BLOCK_SIZE)
 #define H (HEIGHT / BLOCK_SIZE)
-#define BLOCK_DIFF_THRESHOLD 0.05
+#define BLOCK_DIFF_THRESHOLD 0.15
 #define IMAGE_DIFF_THRESHOLD 0.1
 
 #if !defined(MOTION_DEBUG)
-#define MOTION_DEBUG 0
+#define MOTION_DEBUG false
 #endif
 
 uint16_t prev_frame[H][W] = { 0 };
 uint16_t current_frame[H][W] = { 0 };
 uint16_t averagePixelTemp = 0; // not implemented
-bool disableMotion = false;
+bool motionDisabled = false;
+bool isDetecting = false;
+int motionTriggers = 0;
 
 bool capture_still();
 bool motion_detect();
 void update_frame();
 
 void print_frame(uint16_t frame[H][W]);
-void print_state(uint16_t changes, uint16_t blocks);
+void print_state(uint16_t, uint16_t, bool);
 
 
-bool motionDetect() {
+bool motionLoop() {
     bool motionDetected = false; 
 
-    if (!disableMotion) {
+    if (!motionDisabled) {
+        isDetecting = true;
         if (!capture_still()) {
             Serial.println("Failed motion capture");
         } else {
             motionDetected = motion_detect();
-            if (motionDetected) Serial.println("Motion detected");
             update_frame();
         }
     }
-
+    isDetecting = false;
     return motionDetected;
 }
 
 void motionSettings() {
     sensor_t * sensor = esp_camera_sensor_get();
-    if (sensor->status.framesize != FRAMESIZE_QVGA && sensor->pixformat != PIXFORMAT_GRAYSCALE) {
+    if (sensor->status.framesize != MOTION_FRAME || sensor->pixformat != PIXFORMAT_GRAYSCALE) {
         sensor_t * sensor = esp_camera_sensor_get();
         sensor->set_pixformat(sensor, PIXFORMAT_GRAYSCALE);
-        sensor->set_framesize(sensor, FRAMESIZE_QVGA);
+        sensor->set_framesize(sensor, MOTION_FRAME);
         Serial.println("Motion Settings Enabled");
     }
+}
+
+void enableMotion(int level=0) {
+    motionTriggers = level;
+    motionDisabled = false;
+    motionSettings();
+}
+
+void disableMotion() {
+    motionDisabled = true;
 }
 
 bool capture_still() {
@@ -94,7 +107,6 @@ bool capture_still() {
 #if MOTION_DEBUG
     Serial.println("Current frame:");
     print_frame(current_frame);
-    Serial.println("---------------");
 #endif
 
     return true;
@@ -126,7 +138,8 @@ bool motion_detect() {
     bool motion_detected = (1.0 * changes / blocks) > IMAGE_DIFF_THRESHOLD;
 
     if (MOTION_DEBUG || motion_detected) {
-        print_state(changes, blocks);
+        if (motion_detected && (time(NULL) - bootTime >= 60)) motionTriggers += 1;
+        print_state(changes, blocks, motion_detected);
     }
 
     return motion_detected;
@@ -145,12 +158,14 @@ void update_frame() {
     }
 }
 
-void print_state(uint16_t changes, uint16_t blocks) {
-    Serial.print("Changed ");
+void print_state(uint16_t changes, uint16_t blocks, bool motionDetected) {
+    String label = motionDetected ? "Motion Detected: " : "";
+    Serial.print("========== ");
+    Serial.print(label);
     Serial.print(changes);
     Serial.print(" out of ");
-    Serial.println(blocks);
-    Serial.println("=================");
+    Serial.print(blocks);
+    Serial.println(" Blocks Changes ==========");
 }
 
 /**

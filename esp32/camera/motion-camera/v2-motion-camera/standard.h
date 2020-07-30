@@ -13,6 +13,7 @@
 #include <NTPClient.h>
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
+time_t bootTime = 0;
 
 // SD
 //
@@ -62,6 +63,8 @@ void setTime() {
     tv.tv_sec=nowLong;
     tv.tv_usec = 0;
     settimeofday(&tv, 0);
+
+    bootTime = time(NULL);
 }
 
 bool initSD() {
