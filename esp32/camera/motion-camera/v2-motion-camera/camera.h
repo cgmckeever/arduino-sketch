@@ -30,7 +30,8 @@ bool initCamera() {
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
     //config.xclk_freq_hz = 20000000;
-    config.xclk_freq_hz = 5000000; 
+    config.xclk_freq_hz = 10000000;
+    //config.xclk_freq_hz = 5000000; 
 
     config.jpeg_quality = 10;
     config.fb_count = 1;
@@ -52,8 +53,6 @@ void capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
 
     camera_fb_t *fb = esp_camera_fb_get();
-    //esp_camera_fb_return(fb);
-    //fb = esp_camera_fb_get();
     
     if (fb) {
         if(fb->format != PIXFORMAT_JPEG) {
@@ -71,6 +70,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
     bool captured = false;
     _jpg_buf_len = 0;
     _jpg_buf = NULL;
+
     dl_matrix3du_t *image_matrix = NULL;
 
     sensor_t *sensor = esp_camera_sensor_get();
@@ -78,6 +78,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
     sensor->set_framesize(sensor, sensor->status.framesize);
     
     camera_fb_t *fb = esp_camera_fb_get();
+    esp_camera_fb_return(fb);
 
     if (fb) {
         if(fb->width > 400) {
@@ -105,8 +106,6 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
             _jpg_buf_len = fb->len;
             _jpg_buf = fb->buf;
         }
-        esp_camera_fb_return(fb);
-        fb = NULL;
     } else Serial.println("Camera capture failed");
 }
 

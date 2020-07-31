@@ -1,22 +1,23 @@
-String saveFile(unsigned char*, unsigned int, String);
-void captureSend(uint8_t*&, size_t&);
-void registerCameraServer(int);
-
 #include "standard.h"
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera.h"
 
 #define MOTION_DEBUG false
-#define motionTriggerLevel 3
-int resetTriggers = motionTriggerLevel * -2;
+#define motionTriggerLevel 2
+time_t lastMotionAlertAt = 0;
+int resetTriggers = 0;
 int alertsSent = 0;
 #include "motion.h"
 
+String saveFile(unsigned char*, unsigned int, String);
+pixformat_t captureSend(uint8_t*&, size_t&);
+void registerCameraServer(int);
+
 struct argsSend {
-    uint8_t *buf;
-    size_t len;
+    String path;
 };
+
 Timer<5, millis, argsSend*> sendTimer;
 Timer<1, millis, void*> motionTimer;
 
@@ -47,47 +48,42 @@ void loop() {
 bool timedMotion(void *) {
     if (motionLoop()) {
         if (motionTriggers >= motionTriggerLevel) {
-            uint8_t* buf;
-            size_t len;
-            captureSend(buf, len);
+            if (time(NULL) - lastMotionAlertAt > 30) {
+                uint8_t* buf;
+                size_t len;
+                pixformat_t pixformat = captureSend(buf, len);
+                if (pixformat != PIXFORMAT_JPEG) free(buf);
+                lastMotionAlertAt = time(NULL);
+            } else Serial.println("Motion Alert Skipped");
+            
             motionTriggers = 0;
         }
     }
     return true;
 }
 
-bool timedSend(argsSend *args) {
-    Serial.println("Delay Send");
-    saveSend(args->buf, args->len);
-    delete args;
-    return false;
-}
-void saveSend(uint8_t* buf, size_t len) {
+void send(String path="") {
 
-    if (buf) {
-        String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
-        path = saveFile(buf, len, path); 
-        if (path == "") Serial.println("Photo failed to save.");
-        flash(false);
+    SMTPData smtp;
+    smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
+    smtp.setSender("ESP32", emailSenderAccount);
+    smtp.addRecipient(emailAlertAddress);
+    smtp.setPriority("High");
+    smtp.setSubject("Motion Detected " + path);
+    smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
-        SMTPData smtp;
-        smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
-        smtp.setSender("ESP32", emailSenderAccount);
-        smtp.addRecipient(emailAlertAddress);
-        smtp.setPriority("High");
-        smtp.setSubject("Motion Detected " + path);
-        smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
-
+    if (path != "") {
         Serial.println("Attaching: " + path);
-        smtp.addAttachData(path, "image/jpg", buf, len);
+        smtp.addAttachFile(path);
+        smtp.setFileStorageType(MailClientStorageType::SD);
+    }
 
-        if (MailClient.sendMail(smtp)) {
-            Serial.println("Alert Sent");
-        } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+    if (MailClient.sendMail(smtp)) {
+        Serial.println("Alert Sent");
+    } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
 
-        smtp.empty();
-        alertsSent += 1;
-    } else Serial.println("No Capture Returned");
+    smtp.empty();
+    alertsSent += 1;
 }
 
 static esp_err_t indexHandler(httpd_req_t *req){
@@ -98,22 +94,37 @@ static esp_err_t indexHandler(httpd_req_t *req){
     return httpd_resp_send(req, (const char *)index_html_gz, index_html_gz_len);
 }
 
-void captureSend(uint8_t*& buf, size_t& len) {
+bool captureCallback(argsSend *args) {
+    Serial.println("Delay Send");
+    send(args->path);
+    enableMotion(resetTriggers);
+    delete args;
+    return false;
+}
+pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     disableMotion();
 
+    pixformat_t pixformat = PIXFORMAT_JPEG;
+    //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
+
     sensor_t *sensor = esp_camera_sensor_get();
-    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
+    sensor->set_pixformat(sensor, pixformat);
     sensor->set_framesize(sensor, FRAMESIZE_UXGA);
 
     //flash(true);
     capture(buf, len);
     flash(false);
-    
+
+    String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
+    path = saveFile(buf, len, path); 
+    if (path == "") Serial.println("Photo failed to save.");
+    flash(false);
+
     argsSend *args = new argsSend();
-    args->buf = buf;
-    args->len = len;
-    sendTimer.in(500, timedSend, args);
-    enableMotion(resetTriggers);
+    args->path = path;
+    sendTimer.in(500, captureCallback, args);
+
+    return pixformat;
 }
 
 static esp_err_t captureHandler(httpd_req_t *req){
@@ -121,13 +132,16 @@ static esp_err_t captureHandler(httpd_req_t *req){
     
     uint8_t* buf;
     size_t len;
-    captureSend(buf, len);
+    pixformat_t pixformat = captureSend(buf, len);
     
     httpd_resp_set_type(req, "image/jpeg");
     httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    esp_err_t res = httpd_resp_send(req, (const char *)buf, len);
 
-    return httpd_resp_send(req, (const char *)buf, len);
+    if (pixformat != PIXFORMAT_JPEG) free(buf);
+
+    return res;
 }
 
 httpd_handle_t streamServer = NULL;
@@ -143,13 +157,14 @@ static esp_err_t streamHandler(httpd_req_t *req){
     size_t len;
     char * part_buf[64];
     esp_err_t res = ESP_OK;
+    pixformat_t pixformat = PIXFORMAT_JPEG;
+    //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
 
     httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
 
     sensor_t *sensor = esp_camera_sensor_get();
-    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
-    //sensor->set_pixformat(sensor, PIXFORMAT_GRAYSCALE);
+    sensor->set_pixformat(sensor, pixformat);
     sensor->set_framesize(sensor, FRAMESIZE_VGA);
 
     while(res == ESP_OK) { 
@@ -165,6 +180,7 @@ static esp_err_t streamHandler(httpd_req_t *req){
                 }
             }
         }
+        if (pixformat != PIXFORMAT_JPEG) free(buf);
     }
 
     Serial.println("end stream");

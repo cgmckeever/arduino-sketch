@@ -16,7 +16,7 @@
 #define W (WIDTH / BLOCK_SIZE)
 #define H (HEIGHT / BLOCK_SIZE)
 #define BLOCK_DIFF_THRESHOLD 0.15
-#define IMAGE_DIFF_THRESHOLD 0.1
+#define IMAGE_DIFF_THRESHOLD 0.05
 
 #if !defined(MOTION_DEBUG)
 #define MOTION_DEBUG false
@@ -108,7 +108,6 @@ bool capture_still() {
     Serial.println("Current frame:");
     print_frame(current_frame);
 #endif
-
     return true;
 }
 
@@ -159,13 +158,20 @@ void update_frame() {
 }
 
 void print_state(uint16_t changes, uint16_t blocks, bool motionDetected) {
-    String label = motionDetected ? "Motion Detected: " : "";
+    String label = "";
+    String triggers = "";
+    if (motionDetected) {
+        label = "Motion Detected: ";
+        triggers = "Triggered " + (String)motionTriggers;
+    }
+
     Serial.print("========== ");
     Serial.print(label);
     Serial.print(changes);
     Serial.print(" out of ");
     Serial.print(blocks);
-    Serial.println(" Blocks Changes ==========");
+    Serial.print(" Blocks Changes ========== ");
+    Serial.println(triggers);
 }
 
 /**
