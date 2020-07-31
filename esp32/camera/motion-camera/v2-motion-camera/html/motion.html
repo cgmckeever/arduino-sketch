@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        #grid {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            width: 640px;
+            height: 480px;
+        }
+
+        #grid table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #grid td {
+            /* set as per your need */
+            width: 20px;
+            height: 10px;
+            border: 1px solid #ffa5002e;
+        }
+
+        h1 {
+            font-family: monospace;
+        }
+    </style>
+    <style id="style"></style>
+</head>
+<body>
+    <div>
+        <img id="img" style="width: 640px" />
+        <div id="grid"></div>
+        <h1 id="motion"></h1>
+    </div>
+    <script>
+        const SHAPE = [48, 64]
+
+        // update frame at given interval
+        setInterval(() => {
+            const v = +(new Date())
+            const src = `/images/capture.jpg?v=${v}`
+            const img = document.getElementById('img')
+
+            img.src = src
+        }, 300)
+
+        // highlight changed tiles
+        setInterval(() => {
+            const v = +(new Date())
+
+            fetch(`/images/diff.json?v=${v}`)
+                .then(res => res.json())
+                .then(changed => {
+                    // generate a CSS rule for each changed tile
+                    const style = changed.map(([y, x]) => `#c-${y}-${x} { background: #ffe5131c }`).join('')
+                    // minimum number of changed tiles to be detected as motion
+                    const threshold = 100
+                    
+                    document.getElementById('motion').innerText = changed.length > threshold ? 'Motion' : ''
+                    document.getElementById('style').innerHTML = style
+                })
+        }, 300)
+
+        // display grid
+        setTimeout(() => {
+            const grid = document.getElementById('grid')
+            const html = [...new Array(SHAPE[0])].map((y, i) => {
+                return '<tr>' + [...new Array(SHAPE[1])].map((x, j) => `<td id="c-${i}-${j}"></td>`).join('') + '</tr>'
+            }).join('')
+
+            grid.innerHTML = `<table>${html}</table>`
+        }, 3000)
+    </script>
+</body>
+</html>
