@@ -35,6 +35,8 @@ void setup(void) {
     initHTTP(80);
     registerCameraServer(81);
 
+    bootNotify();
+
     motionTimer.every(500, timedMotion);
 }
 
@@ -69,7 +71,7 @@ void send(String path="") {
     smtp.setSender("ESP32", emailSenderAccount);
     smtp.addRecipient(emailAlertAddress);
     smtp.setPriority("High");
-    smtp.setSubject("Motion Detected " + path);
+    smtp.setSubject((String) deviceName + " Motion Detected " + path);
     smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
     if (path != "") {

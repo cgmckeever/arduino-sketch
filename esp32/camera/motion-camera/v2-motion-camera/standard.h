@@ -54,6 +54,23 @@ void startWifi() {
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1); 
 }
 
+void bootNotify() {
+
+    SMTPData smtp;
+    smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
+    smtp.setSender("ESP32", emailSenderAccount);
+    smtp.addRecipient(emailAlertAddress);
+    smtp.setPriority("High");
+    smtp.setSubject("Device Boot: " + (String) deviceName);
+    smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
+
+    if (MailClient.sendMail(smtp)) {
+        Serial.println("Boot Notification Sent");
+    } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+
+    smtp.empty();
+}
+
 void setTime() {
     unsigned long nowLong;
     timeval tv;
