@@ -49,8 +49,9 @@ void flash(bool on) {
     gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
 }
 
-void capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
+pixformat_t capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
+    pixformat_t format; 
 
     camera_fb_t *fb = esp_camera_fb_get();
     
@@ -61,9 +62,12 @@ void capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
             _jpg_buf = fb->buf;
             _jpg_buf_len = fb->len;
         }
+        format = fb->format;
         esp_camera_fb_return(fb);
         fb = NULL;
     } else Serial.println("Camera capture failed");
+
+    return format;
 }
 
 void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
@@ -99,7 +103,6 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
                 }
                 dl_matrix3du_free(image_matrix);
             }
-            
         }
 
         if (captured) {

@@ -106,6 +106,7 @@ bool captureCallback(argsSend *args) {
 pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     disableMotion();
 
+    pixformat_t format;
     pixformat_t pixformat = PIXFORMAT_JPEG;
     //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
 
@@ -114,7 +115,13 @@ pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     sensor->set_framesize(sensor, FRAMESIZE_UXGA);
 
     //flash(true);
-    capture(buf, len);
+    int counter = 0;
+    format = capture(buf, len);
+    while (counter < 6 && format != pixformat) {
+        counter += 1;
+        if (format != PIXFORMAT_JPEG) free(buf);
+        format = capture(buf, len);
+    }
     flash(false);
 
     String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
