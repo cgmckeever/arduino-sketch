@@ -10,6 +10,8 @@ int resetTriggers = 0;
 int alertsSent = 0;
 #include "motion.h"
 
+#include "configmanager.h"
+
 String saveFile(unsigned char*, unsigned int, String);
 pixformat_t captureSend(uint8_t*&, size_t&);
 void registerCameraServer(int);
@@ -25,25 +27,32 @@ void setup(void) {
     Serial.begin(115200);
     initSD();
 
-    startWifi();
-    timeClient.begin();
-    setTime();
+    configSetup();
+
+    Mode mode = configManager.getMode();
+
+    if (mode == api) {
+        timeClient.begin();
+        setTime();
+    }
 
     initCamera();
     flash(false);
 
     initHTTP(80);
-    registerCameraServer(81);
+    registerCameraServer(81);    
 
-    bootNotify();
-
-    motionTimer.every(500, timedMotion);
+    if (mode == api) {
+        bootNotify();
+        motionTimer.every(500, timedMotion);
+    }   
 }
 
 void loop() {
     sendTimer.tick();
     motionTimer.tick();
     timer.tick();
+    configManager.loop();
     //motionLoop();
 }
 
