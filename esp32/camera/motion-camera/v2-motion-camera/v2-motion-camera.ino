@@ -1,16 +1,16 @@
 #include "standard.h"
+AsyncWebServer webServer(80);
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera.h"
 
+/* == motion.h ==*/
 #define MOTION_DEBUG false
 #define motionTriggerLevel 2
 time_t lastMotionAlertAt = 0;
 int resetTriggers = 0;
 int alertsSent = 0;
 #include "motion.h"
-
-#include "configmanager.h"
 
 String saveFile(unsigned char*, unsigned int, String);
 pixformat_t captureSend(uint8_t*&, size_t&);
@@ -25,27 +25,27 @@ Timer<1, millis, void*> motionTimer;
 
 void setup(void) {
     Serial.begin(115200);
+    DEBUG_MODE = true;
     initSD();
 
     configSetup();
 
-    Mode mode = configManager.getMode();
-
-    if (mode == api) {
+    if (wifiConnected) {
         timeClient.begin();
         setTime();
+
+        //bootNotify();
+
+        configManager.stopWebserver();
+        initHTTP(80);
+        //AW::AsyncWebServer streamServer(8080);
+        //registerCameraServer(81);
     }
 
     initCamera();
     flash(false);
 
-    initHTTP(80);
-    registerCameraServer(81);    
-
-    if (mode == api) {
-        bootNotify();
-        motionTimer.every(500, timedMotion);
-    }   
+    //motionTimer.every(500, timedMotion);
 }
 
 void loop() {
@@ -66,7 +66,7 @@ bool timedMotion(void *) {
                 if (pixformat != PIXFORMAT_JPEG) free(buf);
                 lastMotionAlertAt = time(NULL);
             } else Serial.println("Motion Alert Skipped");
-            
+
             motionTriggers = 0;
         }
     }
@@ -74,6 +74,7 @@ bool timedMotion(void *) {
 }
 
 void send(String path="") {
+    if (!wifiConnected) return;
 
     SMTPData smtp;
     smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
@@ -97,13 +98,15 @@ void send(String path="") {
     alertsSent += 1;
 }
 
+
+/*
 static esp_err_t indexHandler(httpd_req_t *req){
     Serial.println("/index");
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
 
     return httpd_resp_send(req, (const char *)index_html_gz, index_html_gz_len);
-}
+} */
 
 bool captureCallback(argsSend *args) {
     Serial.println("Delay Send");
@@ -134,7 +137,7 @@ pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     flash(false);
 
     String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
-    path = saveFile(buf, len, path); 
+    path = saveFile(buf, len, path);
     if (path == "") Serial.println("Photo failed to save.");
     flash(false);
 
@@ -145,13 +148,14 @@ pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     return pixformat;
 }
 
+/*
 static esp_err_t captureHandler(httpd_req_t *req){
     Serial.println("/capture");
-    
+
     uint8_t* buf;
     size_t len;
     pixformat_t pixformat = captureSend(buf, len);
-    
+
     httpd_resp_set_type(req, "image/jpeg");
     httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
@@ -170,7 +174,7 @@ static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 static esp_err_t streamHandler(httpd_req_t *req){
     Serial.println("/stream");
     disableMotion();
-    
+
     uint8_t* buf;
     size_t len;
     char * part_buf[64];
@@ -185,9 +189,9 @@ static esp_err_t streamHandler(httpd_req_t *req){
     sensor->set_pixformat(sensor, pixformat);
     sensor->set_framesize(sensor, FRAMESIZE_VGA);
 
-    while(res == ESP_OK) { 
+    while(res == ESP_OK) {
         capture(buf, len);
-      
+
         if(buf) {
             size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, len);
             res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
@@ -238,4 +242,5 @@ void registerCameraServer(int streamPort) {
     };
     httpd_register_uri_handler(server, &captureURI);
 }
+*/
 

@@ -1,60 +1,40 @@
 #include "constants.h"
 #include <tuple>
 #include <iostream>
-#include <WiFi.h>
 
-// Brownout Handler
-//
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
+/* == SD ==*/
+//#include "SD_MMC.h"
+#include "SD.h"
+bool sdEnabled = false;
 
-// NTP
-//
+/* == eMail ==*/
+#include "ESP32_MailClient.h"
+
+//const char *settingsHTML = (char *)"/settings.html";
+//const char *resetHTML = (char *)"/reset.html";
+const char *stylesCSS = (char *)"/styles.css";
+const char *mainJS = (char *)"/main.js";
+
+/* == ConfigManager ==*/
+#include "configmanager.h"
+
+/* == HTTP Server ==*/
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+extern AsyncWebServer webServer;
+
+/* == NTP ==*/
 #include <NTPClient.h>
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 time_t bootTime = 0;
 
-// SD
-//
-//#include "SD_MMC.h" 
-#include "SD.h" 
-bool sdEnabled = false;
-
-// eMail
-//
-#include "ESP32_MailClient.h"
-
-// HTTP Server
-//
-#include "esp_http_server.h"
-httpd_handle_t server = NULL;
-
-// Timer
-//
+/* == Timer ==*/
 #include <arduino-timer.h>
 Timer<1, millis, void *> timer;
 
-void startWifi() {
-    //disable brownout detector
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
-
-    Serial.println("WiFi connecting..");
-    WiFi.begin(ssid, password);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.println("");
-    Serial.println("WiFi connected");
-
-    //enable brownout detector
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1); 
-}
-
 void bootNotify() {
+    if (!wifiConnected) return;
 
     SMTPData smtp;
     smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
@@ -114,7 +94,7 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
             Serial.println("Failed to open file in writing mode");
             path = "";
         } else {
-            handle.write(buf, len); 
+            handle.write(buf, len);
             Serial.printf("Saved file to path: %s\n", path.c_str());
             handle.close();
         }
@@ -131,30 +111,22 @@ bool rebootCallback(void *) {
     Serial.println('Rebooting...');
     return false;
 }
-static esp_err_t resetHandler(httpd_req_t *req) {
-    const char resp[] = "Rebooting";
-    httpd_resp_send(req, resp, strlen(resp));
-    timer.in(2000, rebootCallback);
-    return ESP_OK;
-}
-void registerReboot() {
-    httpd_uri_t uri = {
-    .uri       = "/reboot",
-    .method    = HTTP_GET,
-    .handler   = resetHandler,
-    .user_ctx  = NULL
-  };
-  
-  httpd_register_uri_handler(server, &uri);
-}
 
 void initHTTP(int port=80) {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.server_port = port;
-    httpd_start(&server, &config);
+    webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
+        timer.in(2000, rebootCallback);
+        request->send(200, "text/plain", "Rebooting...");
+    });
 
-    registerReboot();
+    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        timer.in(2000, rebootCallback);
+        request->send(200, "text/plain", "Hello world!");
+    });
+
+    webServer.begin();
 
     Serial.print("Ready at: http://");
-    Serial.println(WiFi.localIP());
+    Serial.print(WiFi.localIP());
+    Serial.print(":");
+    Serial.println(port);
 }
