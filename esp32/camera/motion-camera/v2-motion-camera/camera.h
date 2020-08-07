@@ -29,9 +29,9 @@ bool initCamera() {
     config.pin_sscb_scl = SIOC_GPIO_NUM;
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
-    //config.xclk_freq_hz = 20000000;
-    config.xclk_freq_hz = 10000000;
-    //config.xclk_freq_hz = 5000000; 
+    config.xclk_freq_hz = 20000000;
+    //config.xclk_freq_hz = 10000000;
+    //config.xclk_freq_hz = 5000000;
 
     config.jpeg_quality = 10;
     config.fb_count = 1;
@@ -41,7 +41,7 @@ bool initCamera() {
 
     cameraOK = esp_camera_init(&config) == ESP_OK;
     return cameraOK;
-} 
+}
 
 void flash(bool on) {
     gpio_pad_select_gpio(GPIO_NUM_4);
@@ -51,10 +51,10 @@ void flash(bool on) {
 
 pixformat_t capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
-    pixformat_t format; 
+    pixformat_t format;
 
     camera_fb_t *fb = esp_camera_fb_get();
-    
+
     if (fb) {
         if(fb->format != PIXFORMAT_JPEG) {
             frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
@@ -80,7 +80,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
     sensor_t *sensor = esp_camera_sensor_get();
     sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
     sensor->set_framesize(sensor, sensor->status.framesize);
-    
+
     camera_fb_t *fb = esp_camera_fb_get();
     esp_camera_fb_return(fb);
 

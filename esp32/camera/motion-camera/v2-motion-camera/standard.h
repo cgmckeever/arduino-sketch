@@ -2,6 +2,8 @@
 #include <tuple>
 #include <iostream>
 
+extern String deviceName;
+
 /* == SD ==*/
 //#include "SD_MMC.h"
 #include "SD.h"
@@ -41,7 +43,7 @@ void bootNotify() {
     smtp.setSender("ESP32", emailSenderAccount);
     smtp.addRecipient(emailAlertAddress);
     smtp.setPriority("High");
-    smtp.setSubject("Device Boot: " + (String) deviceName);
+    smtp.setSubject("Device Boot: " + deviceName);
     smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
     if (MailClient.sendMail(smtp)) {

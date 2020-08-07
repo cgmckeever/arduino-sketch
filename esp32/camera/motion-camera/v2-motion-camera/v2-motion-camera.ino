@@ -1,8 +1,20 @@
 #include "standard.h"
+String deviceName = (String) config.deviceName;
+
 AsyncWebServer webServer(80);
+AsyncWebSocket webSocket("/ws");
+int lastStreamTime = 0;
+
+/*
+#include <ArduinoWebsockets.h>
+using namespace websockets;
+WebsocketsServer sockets;
+*/
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera.h"
+
+camera_fb_t *fb = NULL;
 
 /* == motion.h ==*/
 #define MOTION_DEBUG false
@@ -22,6 +34,10 @@ struct argsSend {
 
 Timer<5, millis, argsSend*> sendTimer;
 Timer<1, millis, void*> motionTimer;
+Timer<1, millis, void*> socketTimer;
+
+TaskHandle_t Task1;
+
 
 void setup(void) {
     Serial.begin(115200);
@@ -37,8 +53,15 @@ void setup(void) {
         //bootNotify();
 
         configManager.stopWebserver();
+
+        //webSocket.onEvent(onWsEvent);
+        max_ws_queued_messages = 3;
+        webServer.addHandler(&webSocket);
         initHTTP(80);
-        //AW::AsyncWebServer streamServer(8080);
+
+        //sockets.listen(82);
+        //socketTimer.every(200, timedSocket);
+
         //registerCameraServer(81);
     }
 
@@ -46,17 +69,88 @@ void setup(void) {
     flash(false);
 
     //motionTimer.every(500, timedMotion);
+    sensor_t *sensor = esp_camera_sensor_get();
+    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
+    sensor->set_framesize(sensor, FRAMESIZE_CIF);
+
+/*
+    xTaskCreatePinnedToCore(
+      espSocket, // Function to implement the task
+      "Task1", // Name of the task
+      10000,  // Stack size in words
+      NULL,  // Task input parameter
+      0,  //Priority of the task
+      &Task1,  // Task handle.
+      0); // Core where the task should run
+      */
+}
+
+/*
+bool arduinoSocket() {
+    auto client = sockets.accept();
+    //client.onMessage(handle_message);
+    while (client.available()) {
+        client.poll();
+        fb = esp_camera_fb_get();
+        client.sendBinary((const char *)fb->buf, fb->len);
+        esp_camera_fb_return(fb);
+        fb = NULL;
+    }
+    return true;
+}
+*/
+
+
+void espSocket() {
+
+    if ((millis() - lastStreamTime) > 100) {
+        /*
+        AsyncWebSocket::AsyncWebSocketClientLinkedList clients = webSocket.getClients();
+        size_t queue = 0;
+        int connected = 0;
+        for(const auto& c: clients) {
+            queue += c->queueLength();
+            connected += 1;
+        }
+
+        if (connected > 0 && queue < 3) {
+            lastStreamTime = millis();
+            uint8_t* buf;
+            size_t len;
+            capture(buf, len);
+            webSocket.binaryAll(buf, len);
+        }
+        */
+        lastStreamTime = millis();
+        uint8_t* buf;
+        size_t len;
+        capture(buf, len);
+        webSocket.binaryAll(buf, len);
+    }
+
+    //fb = esp_camera_fb_get();
+    //webSocket.binaryAll(fb->buf, fb->len);
+
+    //webSocket.binaryAll((const char *) fb->buf);
+    //webSocket.binary(client->id(), fb->buf, fb->len);
+    //esp_camera_fb_return(fb);
 }
 
 void loop() {
     sendTimer.tick();
-    motionTimer.tick();
+    //motionTimer.tick();
     timer.tick();
     configManager.loop();
     //motionLoop();
+
+    //arduinoSocket();
+    espSocket();
+
+    webSocket.cleanupClients();
+
 }
 
-bool timedMotion(void *) {
+bool timedMotion(void*) {
     if (motionLoop()) {
         if (motionTriggers >= motionTriggerLevel) {
             if (time(NULL) - lastMotionAlertAt > 30) {
