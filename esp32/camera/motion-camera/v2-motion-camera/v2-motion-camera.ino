@@ -1,20 +1,15 @@
 #include "standard.h"
 String deviceName = (String) config.deviceName;
 
+/* == web/sockets ==*/
 AsyncWebServer webServer(80);
-AsyncWebSocket webSocket("/ws");
+AsyncWebSocket webSocket("/stream");
 int lastStreamTime = 0;
-
-/*
-#include <ArduinoWebsockets.h>
-using namespace websockets;
-WebsocketsServer sockets;
-*/
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera.h"
 
-camera_fb_t *fb = NULL;
+//camera_fb_t *fb = NULL;
 
 /* == motion.h ==*/
 #define MOTION_DEBUG false
@@ -54,100 +49,48 @@ void setup(void) {
 
         configManager.stopWebserver();
 
-        //webSocket.onEvent(onWsEvent);
         max_ws_queued_messages = 3;
-        webServer.addHandler(&webSocket);
+        registerCameraServer();
         initHTTP(80);
-
-        //sockets.listen(82);
-        //socketTimer.every(200, timedSocket);
-
-        //registerCameraServer(81);
     }
 
     initCamera();
     flash(false);
 
     //motionTimer.every(500, timedMotion);
-    sensor_t *sensor = esp_camera_sensor_get();
-    sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
-    sensor->set_framesize(sensor, FRAMESIZE_CIF);
-
-/*
-    xTaskCreatePinnedToCore(
-      espSocket, // Function to implement the task
-      "Task1", // Name of the task
-      10000,  // Stack size in words
-      NULL,  // Task input parameter
-      0,  //Priority of the task
-      &Task1,  // Task handle.
-      0); // Core where the task should run
-      */
 }
-
-/*
-bool arduinoSocket() {
-    auto client = sockets.accept();
-    //client.onMessage(handle_message);
-    while (client.available()) {
-        client.poll();
-        fb = esp_camera_fb_get();
-        client.sendBinary((const char *)fb->buf, fb->len);
-        esp_camera_fb_return(fb);
-        fb = NULL;
-    }
-    return true;
-}
-*/
 
 
 void espSocket() {
-
     if ((millis() - lastStreamTime) > 100) {
-        /*
-        AsyncWebSocket::AsyncWebSocketClientLinkedList clients = webSocket.getClients();
-        size_t queue = 0;
-        int connected = 0;
-        for(const auto& c: clients) {
-            queue += c->queueLength();
-            connected += 1;
-        }
-
-        if (connected > 0 && queue < 3) {
-            lastStreamTime = millis();
-            uint8_t* buf;
-            size_t len;
-            capture(buf, len);
-            webSocket.binaryAll(buf, len);
-        }
-        */
         lastStreamTime = millis();
+        pixformat_t pixformat = PIXFORMAT_JPEG;
+        //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
+
+        sensor_t *sensor = esp_camera_sensor_get();
+        sensor->set_pixformat(sensor, pixformat);
+        sensor->set_framesize(sensor, FRAMESIZE_VGA);
+
         uint8_t* buf;
         size_t len;
-        capture(buf, len);
+        pixformat = capture(buf, len);
         webSocket.binaryAll(buf, len);
+
+        if (pixformat != PIXFORMAT_JPEG) free(buf);
+
     }
-
-    //fb = esp_camera_fb_get();
-    //webSocket.binaryAll(fb->buf, fb->len);
-
-    //webSocket.binaryAll((const char *) fb->buf);
-    //webSocket.binary(client->id(), fb->buf, fb->len);
-    //esp_camera_fb_return(fb);
 }
 
 void loop() {
     sendTimer.tick();
-    //motionTimer.tick();
     timer.tick();
     configManager.loop();
+
+    //motionTimer.tick();
     //motionLoop();
 
-    //arduinoSocket();
     espSocket();
-
     webSocket.cleanupClients();
-
 }
 
 bool timedMotion(void*) {
@@ -242,99 +185,61 @@ pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     return pixformat;
 }
 
-/*
-static esp_err_t captureHandler(httpd_req_t *req){
-    Serial.println("/capture");
 
-    uint8_t* buf;
-    size_t len;
-    pixformat_t pixformat = captureSend(buf, len);
+camera_fb_t *cap = NULL;
+int getBuffer(char *buffer, size_t maxLen, size_t index)
+{
+    size_t max   = (ESP.getFreeHeap() / 3) & 0xFFE0;
+    Serial.println(index);
 
-    httpd_resp_set_type(req, "image/jpeg");
-    httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-    esp_err_t res = httpd_resp_send(req, (const char *)buf, len);
-
-    if (pixformat != PIXFORMAT_JPEG) free(buf);
-
-    return res;
-}
-
-httpd_handle_t streamServer = NULL;
-#define PART_BOUNDARY "123456789000000000000987654321"
-static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
-static esp_err_t streamHandler(httpd_req_t *req){
-    Serial.println("/stream");
-    disableMotion();
-
-    uint8_t* buf;
-    size_t len;
-    char * part_buf[64];
-    esp_err_t res = ESP_OK;
-    pixformat_t pixformat = PIXFORMAT_JPEG;
-    //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
-
-    httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-
-    sensor_t *sensor = esp_camera_sensor_get();
-    sensor->set_pixformat(sensor, pixformat);
-    sensor->set_framesize(sensor, FRAMESIZE_VGA);
-
-    while(res == ESP_OK) {
-        capture(buf, len);
-
-        if(buf) {
-            size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, len);
-            res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
-            if(res == ESP_OK) {
-                res = httpd_resp_send_chunk(req, (const char *)buf, len);
-                if(res == ESP_OK) {
-                    res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
-                }
-            }
+    // Get the chunk based on the index and maxLen
+    Serial.println(cap->len);
+    size_t len = cap->len - index;
+    Serial.println(len);
+    if (len > maxLen) len = maxLen;
+    if (len > max) len = max;
+    if (len > 0) {
+        if (index == 0) {
+          //Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
         }
-        if (pixformat != PIXFORMAT_JPEG) free(buf);
-    }
+        Serial.println("...");
+        Serial.println(len);
+        memcpy_P(buffer, cap->buf + index, len);
+    } else cap = NULL;
 
-    Serial.println("end stream");
-    enableMotion(resetTriggers);
-    return res;
+    //if (len == 0) Serial.printf(PSTR("\r\n"));
+    return len;
 }
-void registerCameraServer(int streamPort) {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.server_port = streamPort;
-    config.ctrl_port = streamPort * 1000 + streamPort;
 
-    httpd_uri_t streamURI = {
-        .uri       = "/stream",
-        .method    = HTTP_GET,
-        .handler   = streamHandler,
-        .user_ctx  = NULL
-    };
 
-    if (httpd_start(&streamServer, &config) == ESP_OK) {
-        httpd_register_uri_handler(streamServer, &streamURI);
-    }
-    Serial.printf("Starting stream server on port: %d\n", config.server_port);
+void registerCameraServer() {
+    webServer.addHandler(&webSocket);
 
-    httpd_uri_t indexURI = {
-        .uri       = "/",
-        .method    = HTTP_GET,
-        .handler   = indexHandler,
-        .user_ctx  = NULL
-    };
-    httpd_register_uri_handler(server, &indexURI);
+    webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
+        Serial.println("/capture");
 
-    httpd_uri_t captureURI = {
-        .uri       = "/capture",
-        .method    = HTTP_GET,
-        .handler   = captureHandler,
-        .user_ctx  = NULL
-    };
-    httpd_register_uri_handler(server, &captureURI);
+        //uint8_t* buf;
+        //size_t len;
+        pixformat_t pixformat = PIXFORMAT_JPEG;
+        //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
+        sensor_t *sensor = esp_camera_sensor_get();
+        sensor->set_pixformat(sensor, pixformat);
+        sensor->set_framesize(sensor, FRAMESIZE_SVGA);
+
+        cap = esp_camera_fb_get();
+
+        //esp_err_t res = httpd_resp_send(req, (const char *)buf, len);
+
+
+        AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+            return getBuffer((char *) buffer, maxLen, index);
+        });
+        response->addHeader("Content-Disposition", "inline; filename=capture.jpg");
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
+
+        //if (pixformat != PIXFORMAT_JPEG) free(buf);
+    });
 }
-*/
+
 

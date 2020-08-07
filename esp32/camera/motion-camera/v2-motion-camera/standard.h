@@ -110,7 +110,7 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
 
 bool rebootCallback(void *) {
     ESP.restart();
-    Serial.println('Rebooting...');
+    Serial.println('Rebooting...!');
     return false;
 }
 
@@ -121,7 +121,6 @@ void initHTTP(int port=80) {
     });
 
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        timer.in(2000, rebootCallback);
         request->send(200, "text/plain", "Hello world!");
     });
 
