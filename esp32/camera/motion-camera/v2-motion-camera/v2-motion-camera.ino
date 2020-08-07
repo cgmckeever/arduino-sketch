@@ -87,13 +87,15 @@ void espSocket() {
         sensor->set_framesize(sensor, FRAMESIZE_QVGA);
 
         camera_fb_t *fb = capture(buf, len);
-        max_ws_queued_messages = 2;
-        webSocket.binaryAll(buf, len);
-        bufferRelease(fb);
-        cameraRelease(isStream);
+        if (fb) {
+            max_ws_queued_messages = 2;
+            webSocket.binaryAll(buf, len);
+            bufferRelease(fb);
+            cameraRelease(isStream);
 
-        lastStreamTime = millis();
-        if (fb->format != PIXFORMAT_JPEG) free(buf);
+            lastStreamTime = millis();
+            if (fb->format != PIXFORMAT_JPEG) free(buf);
+        }
     }
 }
 
@@ -111,7 +113,7 @@ void loop() {
 
 bool timedMotion(void*) {
     if (cameraMode == isReady) {
-       cameraMode = isMotion;
+        cameraMode = isMotion;
         if (motionLoop()) {
             if (motionTriggers >= motionTriggerLevel) {
                 if (time(NULL) - lastMotionAlertAt > 30) {
@@ -126,7 +128,6 @@ bool timedMotion(void*) {
                 motionTriggers = 0;
             }
         }
-
         cameraRelease(isMotion);
     }
 
@@ -135,6 +136,8 @@ bool timedMotion(void*) {
 
 void send(String path="") {
     if (!wifiConnected) return;
+
+    Serial.println("Prepping Email");
 
     SMTPData smtp;
     smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
@@ -189,11 +192,14 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
     //flash(true);
     int counter = 0;
     camera_fb_t *fb = capture(buf, len);
+    /*
     while (counter < 6 && format != pixformat) {
         counter += 1;
         if (fb->format != PIXFORMAT_JPEG) free(buf);
+        bufferRelease(fb);
         fb = capture(buf, len);
     }
+    */
     flash(false);
 
     String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
@@ -256,7 +262,7 @@ void registerCameraServer() {
         sensor->set_pixformat(sensor, pixformat);
         sensor->set_framesize(sensor, FRAMESIZE_SVGA);
 
-        captureFB = capture(captureBuf, captureLen);
+        captureFB = captureSend(captureBuf, captureLen);
 
         AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
             return chunkBuffer((char *) buffer, maxLen, index);

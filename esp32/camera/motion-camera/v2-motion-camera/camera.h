@@ -10,7 +10,7 @@ bool cameraOK = false;
 bool *cameraInUse = new bool(false);
 
 enum cameraModes { isReady, isStream, isCapture, isMotion };
-cameraModes cameraMode = isReady;
+cameraModes cameraMode;
 
 bool initCamera() {
     camera_config_t config;
@@ -44,6 +44,7 @@ bool initCamera() {
     config.pixel_format = PIXFORMAT_JPEG;
 
     cameraOK = esp_camera_init(&config) == ESP_OK;
+    cameraMode = isReady;
     return cameraOK;
 }
 
@@ -59,11 +60,29 @@ void cameraRelease(cameraModes current) {
 
 camera_fb_t* bufferCapture() {
     *cameraInUse = true;
-    return esp_camera_fb_get();
+    camera_fb_t *fb = esp_camera_fb_get();
+
+    uint8_t *_buf = new uint8_t[fb->len + 1];
+    memcpy(_buf, fb->buf, fb->len);
+    _buf[fb->len] = 0;
+
+    camera_fb_t *fbc = new camera_fb_t;
+    fbc->buf = _buf;
+    fbc->len = fb->len;
+    fbc->width = fb->width;
+    fbc->height = fb->height;
+    fbc->format = fb->format;
+    //fbc->timestamp = fb->timestamp;
+
+    esp_camera_fb_return(fb);
+    return fbc;
 }
 
 void bufferRelease(camera_fb_t* fb) {
-    esp_camera_fb_return(fb);
+    delete(fb->buf);
+    delete(fb);
+    //esp_camera_fb_return(fb);
+
     *cameraInUse = false;
 }
 
