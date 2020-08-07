@@ -72,7 +72,7 @@ figure img{
 <script>
 const view = document.getElementById('stream');
 //const WS_URL = "ws://192.168.1.12:82";
-const WS_URL = "ws://192.168.1.12/stream";
+const WS_URL = "ws://192.168.1.10/stream";
 const ws = new WebSocket(WS_URL);
 
 ws.onmessage = message => {

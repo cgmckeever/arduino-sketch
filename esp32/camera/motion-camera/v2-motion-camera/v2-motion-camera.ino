@@ -9,7 +9,11 @@ int lastStreamTime = 0;
 #define CAMERA_MODEL_AI_THINKER
 #include "camera.h"
 
-//camera_fb_t *fb = NULL;
+uint8_t* captureBuf;
+size_t captureLen;
+camera_fb_t *captureFB;
+
+int streamWait = 100;
 
 /* == motion.h ==*/
 #define MOTION_DEBUG false
@@ -20,7 +24,7 @@ int alertsSent = 0;
 #include "motion.h"
 
 String saveFile(unsigned char*, unsigned int, String);
-pixformat_t captureSend(uint8_t*&, size_t&);
+camera_fb_t* captureSend(uint8_t*&, size_t&);
 void registerCameraServer(int);
 
 struct argsSend {
@@ -49,7 +53,6 @@ void setup(void) {
 
         configManager.stopWebserver();
 
-        max_ws_queued_messages = 3;
         registerCameraServer();
         initHTTP(80);
     }
@@ -60,24 +63,37 @@ void setup(void) {
     //motionTimer.every(500, timedMotion);
 }
 
+int clientCount() {
+    AsyncWebSocket::AsyncWebSocketClientLinkedList clients = webSocket.getClients();
+    int connected = 0;
+    for(const auto& c: clients) {
+        connected += 1;
+    }
+    return connected;
+}
+
 
 void espSocket() {
-    if ((millis() - lastStreamTime) > 100) {
-        lastStreamTime = millis();
+    if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait && clientCount() > 0) {
+        streamWait = 100;
+        cameraMode = isStream;
+        uint8_t* buf;
+        size_t len;
         pixformat_t pixformat = PIXFORMAT_JPEG;
         //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
 
         sensor_t *sensor = esp_camera_sensor_get();
         sensor->set_pixformat(sensor, pixformat);
-        sensor->set_framesize(sensor, FRAMESIZE_VGA);
+        sensor->set_framesize(sensor, FRAMESIZE_QVGA);
 
-        uint8_t* buf;
-        size_t len;
-        pixformat = capture(buf, len);
+        camera_fb_t *fb = capture(buf, len);
+        max_ws_queued_messages = 2;
         webSocket.binaryAll(buf, len);
+        bufferRelease(fb);
+        cameraRelease(isStream);
 
-        if (pixformat != PIXFORMAT_JPEG) free(buf);
-
+        lastStreamTime = millis();
+        if (fb->format != PIXFORMAT_JPEG) free(buf);
     }
 }
 
@@ -94,19 +110,26 @@ void loop() {
 }
 
 bool timedMotion(void*) {
-    if (motionLoop()) {
-        if (motionTriggers >= motionTriggerLevel) {
-            if (time(NULL) - lastMotionAlertAt > 30) {
-                uint8_t* buf;
-                size_t len;
-                pixformat_t pixformat = captureSend(buf, len);
-                if (pixformat != PIXFORMAT_JPEG) free(buf);
-                lastMotionAlertAt = time(NULL);
-            } else Serial.println("Motion Alert Skipped");
+    if (cameraMode == isReady) {
+       cameraMode = isMotion;
+        if (motionLoop()) {
+            if (motionTriggers >= motionTriggerLevel) {
+                if (time(NULL) - lastMotionAlertAt > 30) {
+                    uint8_t* buf;
+                    size_t len;
+                    camera_fb_t *fb = captureSend(buf, len);
+                    if (fb->format != PIXFORMAT_JPEG) free(buf);
+                    bufferRelease(fb);
+                    lastMotionAlertAt = time(NULL);
+                } else Serial.println("Motion Alert Skipped");
 
-            motionTriggers = 0;
+                motionTriggers = 0;
+            }
         }
+
+        cameraRelease(isMotion);
     }
+
     return true;
 }
 
@@ -152,7 +175,7 @@ bool captureCallback(argsSend *args) {
     delete args;
     return false;
 }
-pixformat_t captureSend(uint8_t*& buf, size_t& len) {
+camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
     disableMotion();
 
     pixformat_t format;
@@ -165,11 +188,11 @@ pixformat_t captureSend(uint8_t*& buf, size_t& len) {
 
     //flash(true);
     int counter = 0;
-    format = capture(buf, len);
+    camera_fb_t *fb = capture(buf, len);
     while (counter < 6 && format != pixformat) {
         counter += 1;
-        if (format != PIXFORMAT_JPEG) free(buf);
-        format = capture(buf, len);
+        if (fb->format != PIXFORMAT_JPEG) free(buf);
+        fb = capture(buf, len);
     }
     flash(false);
 
@@ -182,32 +205,28 @@ pixformat_t captureSend(uint8_t*& buf, size_t& len) {
     args->path = path;
     sendTimer.in(500, captureCallback, args);
 
-    return pixformat;
+    return fb;
 }
 
 
-camera_fb_t *cap = NULL;
-int getBuffer(char *buffer, size_t maxLen, size_t index)
+int chunkBuffer(char *buffer, size_t maxLen, size_t index)
 {
     size_t max   = (ESP.getFreeHeap() / 3) & 0xFFE0;
-    Serial.println(index);
 
-    // Get the chunk based on the index and maxLen
-    Serial.println(cap->len);
-    size_t len = cap->len - index;
-    Serial.println(len);
+    size_t len = captureLen - index;
     if (len > maxLen) len = maxLen;
     if (len > max) len = max;
+
     if (len > 0) {
         if (index == 0) {
-          //Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
+          Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
         }
-        Serial.println("...");
-        Serial.println(len);
-        memcpy_P(buffer, cap->buf + index, len);
-    } else cap = NULL;
+        memcpy_P(buffer, captureBuf + index, len);
+    } else {
+        bufferRelease(captureFB);
+        cameraRelease(isCapture);
+    }
 
-    //if (len == 0) Serial.printf(PSTR("\r\n"));
     return len;
 }
 
@@ -217,28 +236,35 @@ void registerCameraServer() {
 
     webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
         Serial.println("/capture");
+        cameraMode = isCapture;
+        streamWait = 1000;
 
-        //uint8_t* buf;
-        //size_t len;
+        int waitStart = millis();
+        while (*cameraInUse) {
+            cameraMode = isCapture;
+            streamWait = 1000;
+            if (millis() - waitStart > 1200) {
+                request->send(200, "text/plain", "Capture Timeout");
+                cameraRelease(isCapture);
+                return;
+            }
+        }
+
+        // only capture JPEG, no free(buf)
         pixformat_t pixformat = PIXFORMAT_JPEG;
-        //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
         sensor_t *sensor = esp_camera_sensor_get();
         sensor->set_pixformat(sensor, pixformat);
         sensor->set_framesize(sensor, FRAMESIZE_SVGA);
 
-        cap = esp_camera_fb_get();
-
-        //esp_err_t res = httpd_resp_send(req, (const char *)buf, len);
-
+        captureFB = capture(captureBuf, captureLen);
 
         AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-            return getBuffer((char *) buffer, maxLen, index);
+            return chunkBuffer((char *) buffer, maxLen, index);
         });
         response->addHeader("Content-Disposition", "inline; filename=capture.jpg");
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
 
-        //if (pixformat != PIXFORMAT_JPEG) free(buf);
     });
 }
 

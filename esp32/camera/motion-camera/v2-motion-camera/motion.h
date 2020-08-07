@@ -38,7 +38,7 @@ void print_state(uint16_t, uint16_t, bool);
 
 
 bool motionLoop() {
-    bool motionDetected = false; 
+    bool motionDetected = false;
 
     if (!motionDisabled) {
         isDetecting = true;
@@ -76,38 +76,42 @@ void disableMotion() {
 bool capture_still() {
     motionSettings();
 
-    camera_fb_t *frame_buffer = esp_camera_fb_get();
-    esp_camera_fb_return(frame_buffer);
-    if (!frame_buffer) return false;
+    camera_fb_t *fb = bufferCapture();
+    bufferRelease(fb);
+    if (!fb) return false;
 
-    current_frame[H][W] = { 0 };
-    uint32_t totalPixelTemp = 0;
+    if (fb) {
+        current_frame[H][W] = { 0 };
+        uint32_t totalPixelTemp = 0;
 
-    // down-sample image in blocks
-    for (uint32_t i = 0; i < WIDTH * HEIGHT; i++) {
-        const uint16_t x = i % WIDTH;
-        const uint16_t y = floor(i / WIDTH);
-        const uint8_t block_x = floor(x / BLOCK_SIZE);
-        const uint8_t block_y = floor(y / BLOCK_SIZE);
-        const uint8_t pixel = frame_buffer->buf[i];
-        const uint16_t current = current_frame[block_y][block_x];
+        // down-sample image in blocks
+        for (uint32_t i = 0; i < WIDTH * HEIGHT; i++) {
+            const uint16_t x = i % WIDTH;
+            const uint16_t y = floor(i / WIDTH);
+            const uint8_t block_x = floor(x / BLOCK_SIZE);
+            const uint8_t block_y = floor(y / BLOCK_SIZE);
+            const uint8_t pixel = fb->buf[i];
+            const uint16_t current = current_frame[block_y][block_x];
 
-        // average pixels in block (accumulate)
-        current_frame[block_y][block_x] += pixel;
-        totalPixelTemp += pixel;
-    }
+            // average pixels in block (accumulate)
+            current_frame[block_y][block_x] += pixel;
+            totalPixelTemp += pixel;
+        }
 
-    averagePixelTemp = totalPixelTemp / (WIDTH * HEIGHT); 
+        bufferRelease(fb);
 
-    // average pixels in block (rescale)
-    for (int y = 0; y < H; y++)
-        for (int x = 0; x < W; x++)
-            current_frame[y][x] /= BLOCK_SIZE * BLOCK_SIZE;
+        averagePixelTemp = totalPixelTemp / (WIDTH * HEIGHT);
+
+        // average pixels in block (rescale)
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+                current_frame[y][x] /= BLOCK_SIZE * BLOCK_SIZE;
 
 #if MOTION_DEBUG
-    Serial.println("Current frame:");
-    print_frame(current_frame);
+        Serial.println("Current frame:");
+        print_frame(current_frame);
 #endif
+    } else return false;
     return true;
 }
 

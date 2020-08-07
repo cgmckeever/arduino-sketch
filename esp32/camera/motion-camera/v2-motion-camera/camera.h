@@ -7,6 +7,10 @@
 void getSettings();
 
 bool cameraOK = false;
+bool *cameraInUse = new bool(false);
+
+enum cameraModes { isReady, isStream, isCapture, isMotion };
+cameraModes cameraMode = isReady;
 
 bool initCamera() {
     camera_config_t config;
@@ -49,11 +53,25 @@ void flash(bool on) {
     gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
 }
 
-pixformat_t capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
+void cameraRelease(cameraModes current) {
+    if (cameraMode == current) cameraMode = isReady;
+}
+
+camera_fb_t* bufferCapture() {
+    *cameraInUse = true;
+    return esp_camera_fb_get();
+}
+
+void bufferRelease(camera_fb_t* fb) {
+    esp_camera_fb_return(fb);
+    *cameraInUse = false;
+}
+
+camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
     pixformat_t format;
 
-    camera_fb_t *fb = esp_camera_fb_get();
+    camera_fb_t *fb = bufferCapture();
 
     if (fb) {
         if(fb->format != PIXFORMAT_JPEG) {
@@ -63,11 +81,9 @@ pixformat_t capture(uint8_t*& _jpg_buf , size_t& _jpg_buf_len) {
             _jpg_buf_len = fb->len;
         }
         format = fb->format;
-        esp_camera_fb_return(fb);
-        fb = NULL;
     } else Serial.println("Camera capture failed");
 
-    return format;
+    return fb;
 }
 
 void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
@@ -81,8 +97,8 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
     sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
     sensor->set_framesize(sensor, sensor->status.framesize);
 
-    camera_fb_t *fb = esp_camera_fb_get();
-    esp_camera_fb_return(fb);
+    camera_fb_t *fb = bufferCapture();
+    bufferRelease(fb);
 
     if (fb) {
         if(fb->width > 400) {
