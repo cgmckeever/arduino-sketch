@@ -66,7 +66,7 @@ void setup(void) {
 void sockets() {
     if (streamSocket.count() > 0) {
         disableMotion();
-        if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
+        if (*cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
             cameraControl(isStream);
             streamWait = 100;
 
@@ -91,7 +91,10 @@ void sockets() {
             }
             cameraRelease(isStream);
         }
-    } else enableMotion();
+    } else if (lastStreamTime > 0) {
+        lastStreamTime = 0;
+        enableMotion();
+    }
 }
 
 void loop() {
@@ -103,10 +106,14 @@ void loop() {
     //motionLoop();
 
     sockets();
+
+    if (logSocket.count() > 0) {
+        disableMotion();
+    } else enableMotion();
 }
 
 bool timedMotion(void*) {
-    if (cameraMode == isReady) {
+    if (*cameraMode == isReady && !motionDisabled) {
         cameraControl(isMotion);
         if (motionLoop()) {
             if (motionTriggers >= motionTriggerLevel) {
@@ -168,13 +175,10 @@ static esp_err_t indexHandler(httpd_req_t *req){
 bool captureCallback(argsSend *args) {
     loggerln("Delay Send");
     send(args->path);
-    enableMotion(resetTriggers);
     delete args;
     return false;
 }
 camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
-    disableMotion();
-
     pixformat_t format;
     pixformat_t pixformat = PIXFORMAT_JPEG;
     //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
@@ -186,6 +190,7 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
     //flash(true);
     int counter = 0;
     camera_fb_t *fb = capture(buf, len);
+
     /*
     while (counter < 6 && format != pixformat) {
         counter += 1;
@@ -196,16 +201,21 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
     */
     flash(false);
 
-    String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
-    path = saveFile(buf, len, path);
-    if (path == "") loggerln("Photo failed to save.");
-    flash(false);
+    saveBuffer(buf, len);
 
     argsSend *args = new argsSend();
     args->path = path;
     sendTimer.in(500, captureCallback, args);
 
     return fb;
+}
+
+String saveBuffer(uint8_t* buf, size_t len) {
+    String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
+    path = saveFile(buf, len, path);
+    flash(false);
+    if (path == "") loggerln("Photo failed to save.");
+    return path;
 }
 
 
@@ -225,6 +235,7 @@ int chunkBuffer(char *buffer, size_t maxLen, size_t index)
         memcpy_P(buffer, captureBuf + index, len);
     } else {
         bufferRelease(captureFB);
+        captureBuf = NULL;
         cameraRelease(isCapture);
     }
 
@@ -236,15 +247,14 @@ void registerCameraServer() {
 
     webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("/capture");
-        cameraMode = isCapture;
+        *cameraMode = isCapture;
         streamWait = 1000;
 
         int waitStart = millis();
-        while (*cameraInUse) {
-            loggerln("Waiting for camera ready...");
-            cameraMode = isCapture;
+        while (*cameraInUse == true) {
+            *cameraMode = isCapture;
             streamWait = 1000;
-            if (millis() - waitStart > 1200) {
+            if (millis() - waitStart > 3000) {
                 request->send(200, "text/plain", "Capture Timeout");
                 loggerln("Capture timeout");
                 cameraRelease(isCapture);
@@ -252,6 +262,7 @@ void registerCameraServer() {
             }
         }
 
+        disableMotion();
         cameraControl(isCapture);
 
         // only capture JPEG, no free(buf)
@@ -260,7 +271,8 @@ void registerCameraServer() {
         sensor->set_pixformat(sensor, pixformat);
         sensor->set_framesize(sensor, FRAMESIZE_SVGA);
 
-        captureFB = captureSend(captureBuf, captureLen);
+        captureFB = capture(captureBuf, captureLen);
+        saveBuffer(captureBuf, captureLen);
 
         AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
             return chunkBuffer((char *) buffer, maxLen, index);
@@ -268,7 +280,6 @@ void registerCameraServer() {
         response->addHeader("Content-Disposition", "inline; filename=capture.jpg");
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
-
     });
 }
 

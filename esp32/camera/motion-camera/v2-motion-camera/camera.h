@@ -9,7 +9,7 @@ bool cameraOK = false;
 bool *cameraInUse = new bool(false);
 
 enum cameraModes { isReady, isStream, isCapture, isMotion };
-cameraModes cameraMode;
+cameraModes *cameraMode = new cameraModes;
 
 bool initCamera() {
     camera_config_t config;
@@ -43,7 +43,8 @@ bool initCamera() {
     config.pixel_format = PIXFORMAT_JPEG;
 
     cameraOK = esp_camera_init(&config) == ESP_OK;
-    cameraMode = isReady;
+    *cameraMode = isReady;
+    *cameraInUse = false;
     return cameraOK;
 }
 
@@ -54,12 +55,12 @@ void flash(bool on) {
 }
 
 void cameraControl(cameraModes current) {
-    cameraMode = current;
+    *cameraMode = current;
     *cameraInUse = true;
 }
 
 void cameraRelease(cameraModes current) {
-    if (cameraMode == current) cameraMode = isReady;
+    if (*cameraMode == current) *cameraMode = isReady;
     *cameraInUse = false;
 }
 
