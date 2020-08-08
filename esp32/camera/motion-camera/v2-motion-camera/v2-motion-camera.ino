@@ -67,11 +67,9 @@ void sockets() {
     if (streamSocket.count() > 0) {
         disableMotion();
         if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
+            cameraControl(isStream);
             streamWait = 100;
-            cameraMode = isStream;
-            *cameraInUse = true;
-            uint8_t* buf;
-            size_t len;
+
             pixformat_t pixformat = PIXFORMAT_JPEG;
             //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
 
@@ -79,17 +77,19 @@ void sockets() {
             sensor->set_pixformat(sensor, pixformat);
             sensor->set_framesize(sensor, FRAMESIZE_QVGA);
 
+            uint8_t* buf;
+            size_t len;
             camera_fb_t *fb = capture(buf, len);
             if (fb) {
                 max_ws_queued_messages = 2;
+
                 streamSocket.binaryAll(buf, len);
                 bufferRelease(fb);
-                cameraRelease(isStream);
 
                 lastStreamTime = millis();
                 if (fb->format != PIXFORMAT_JPEG) free(buf);
             }
-            cameraInUse = false;
+            cameraRelease(isStream);
         }
     } else enableMotion();
 }
@@ -107,7 +107,7 @@ void loop() {
 
 bool timedMotion(void*) {
     if (cameraMode == isReady) {
-        cameraMode = isMotion;
+        cameraControl(isMotion);
         if (motionLoop()) {
             if (motionTriggers >= motionTriggerLevel) {
                 if (time(NULL) - lastMotionAlertAt > 30) {
@@ -251,6 +251,8 @@ void registerCameraServer() {
                 return;
             }
         }
+
+        cameraControl(isCapture);
 
         // only capture JPEG, no free(buf)
         pixformat_t pixformat = PIXFORMAT_JPEG;

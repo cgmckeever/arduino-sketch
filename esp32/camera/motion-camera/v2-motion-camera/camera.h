@@ -53,13 +53,17 @@ void flash(bool on) {
     gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
 }
 
+void cameraControl(cameraModes current) {
+    cameraMode = current;
+    *cameraInUse = true;
+}
+
 void cameraRelease(cameraModes current) {
     if (cameraMode == current) cameraMode = isReady;
+    *cameraInUse = false;
 }
 
 camera_fb_t* bufferCapture() {
-    *cameraInUse = true;
-
     camera_fb_t *fbc = new camera_fb_t;
     camera_fb_t *fb = esp_camera_fb_get();
 
@@ -84,8 +88,6 @@ void bufferRelease(camera_fb_t* fb) {
     delete(fb->buf);
     delete(fb);
     //esp_camera_fb_return(fb);
-
-    *cameraInUse = false;
 }
 
 camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
