@@ -69,6 +69,7 @@ void sockets() {
         if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
             streamWait = 100;
             cameraMode = isStream;
+            *cameraInUse = true;
             uint8_t* buf;
             size_t len;
             pixformat_t pixformat = PIXFORMAT_JPEG;
@@ -88,6 +89,7 @@ void sockets() {
                 lastStreamTime = millis();
                 if (fb->format != PIXFORMAT_JPEG) free(buf);
             }
+            cameraInUse = false;
         }
     } else enableMotion();
 }
@@ -239,6 +241,7 @@ void registerCameraServer() {
 
         int waitStart = millis();
         while (*cameraInUse) {
+            loggerln("Waiting for camera ready...");
             cameraMode = isCapture;
             streamWait = 1000;
             if (millis() - waitStart > 1200) {
