@@ -33,8 +33,8 @@ bool initCamera() {
     config.pin_sscb_scl = SIOC_GPIO_NUM;
     config.pin_pwdn = PWDN_GPIO_NUM;
     config.pin_reset = RESET_GPIO_NUM;
-    config.xclk_freq_hz = 20000000;
-    //config.xclk_freq_hz = 10000000;
+    //config.xclk_freq_hz = 20000000;
+    config.xclk_freq_hz = 10000000;
     //config.xclk_freq_hz = 5000000;
 
     config.jpeg_quality = 10;
@@ -60,21 +60,26 @@ void cameraRelease(cameraModes current) {
 
 camera_fb_t* bufferCapture() {
     *cameraInUse = true;
-    camera_fb_t *fb = esp_camera_fb_get();
-
-    uint8_t *_buf = new uint8_t[fb->len + 1];
-    memcpy(_buf, fb->buf, fb->len);
-    _buf[fb->len] = 0;
 
     camera_fb_t *fbc = new camera_fb_t;
-    fbc->buf = _buf;
-    fbc->len = fb->len;
-    fbc->width = fb->width;
-    fbc->height = fb->height;
-    fbc->format = fb->format;
-    //fbc->timestamp = fb->timestamp;
+    camera_fb_t *fb = esp_camera_fb_get();
 
-    esp_camera_fb_return(fb);
+    if (fb) {
+        Serial.println(fb->len);
+        /*
+        uint8_t *_buf = new uint8_t[fb->len];
+        memcpy(_buf, fb->buf, fb->len);
+        //_buf[fb->len] = 0;
+        fbc->buf = _buf;
+        fbc->len = fb->len;
+        fbc->width = fb->width;
+        fbc->height = fb->height;
+        fbc->format = fb->format;
+        //fbc->timestamp = fb->timestamp;
+
+        esp_camera_fb_return(fb);
+        */
+    } else fbc = NULL;
     return fbc;
 }
 

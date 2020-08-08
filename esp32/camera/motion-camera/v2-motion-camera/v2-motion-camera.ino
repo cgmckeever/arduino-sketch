@@ -60,7 +60,7 @@ void setup(void) {
     initCamera();
     flash(false);
 
-    //motionTimer.every(500, timedMotion);
+    motionTimer.every(500, timedMotion);
 }
 
 int clientCount() {
@@ -74,29 +74,32 @@ int clientCount() {
 
 
 void espSocket() {
-    if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait && clientCount() > 0) {
-        streamWait = 100;
-        cameraMode = isStream;
-        uint8_t* buf;
-        size_t len;
-        pixformat_t pixformat = PIXFORMAT_JPEG;
-        //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
+    if (clientCount() > 0) {
+        disableMotion();
+        if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
+            streamWait = 100;
+            cameraMode = isStream;
+            uint8_t* buf;
+            size_t len;
+            pixformat_t pixformat = PIXFORMAT_JPEG;
+            //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
 
-        sensor_t *sensor = esp_camera_sensor_get();
-        sensor->set_pixformat(sensor, pixformat);
-        sensor->set_framesize(sensor, FRAMESIZE_QVGA);
+            sensor_t *sensor = esp_camera_sensor_get();
+            sensor->set_pixformat(sensor, pixformat);
+            sensor->set_framesize(sensor, FRAMESIZE_QVGA);
 
-        camera_fb_t *fb = capture(buf, len);
-        if (fb) {
-            max_ws_queued_messages = 2;
-            webSocket.binaryAll(buf, len);
-            bufferRelease(fb);
-            cameraRelease(isStream);
+            camera_fb_t *fb = capture(buf, len);
+            if (fb) {
+                max_ws_queued_messages = 2;
+                webSocket.binaryAll(buf, len);
+                bufferRelease(fb);
+                cameraRelease(isStream);
 
-            lastStreamTime = millis();
-            if (fb->format != PIXFORMAT_JPEG) free(buf);
+                lastStreamTime = millis();
+                if (fb->format != PIXFORMAT_JPEG) free(buf);
+            }
         }
-    }
+    } else enableMotion();
 }
 
 void loop() {
@@ -104,7 +107,7 @@ void loop() {
     timer.tick();
     configManager.loop();
 
-    //motionTimer.tick();
+    motionTimer.tick();
     //motionLoop();
 
     espSocket();

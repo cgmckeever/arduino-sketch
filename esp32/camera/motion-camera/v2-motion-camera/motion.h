@@ -64,9 +64,11 @@ void motionSettings() {
 }
 
 void enableMotion(int level=0) {
-    motionTriggers = level;
-    motionDisabled = false;
-    motionSettings();
+    if (motionDisabled) {
+        motionTriggers = level;
+        motionDisabled = false;
+        motionSettings();
+    }
 }
 
 void disableMotion() {
@@ -76,14 +78,13 @@ void disableMotion() {
 bool capture_still() {
     motionSettings();
 
-    camera_fb_t *fb = bufferCapture();
-    bufferRelease(fb);
+    camera_fb_t *fb = esp_camera_fb_get();
+
     if (!fb) return false;
 
     if (fb) {
         current_frame[H][W] = { 0 };
         uint32_t totalPixelTemp = 0;
-
         // down-sample image in blocks
         for (uint32_t i = 0; i < WIDTH * HEIGHT; i++) {
             const uint16_t x = i % WIDTH;
@@ -97,8 +98,7 @@ bool capture_still() {
             current_frame[block_y][block_x] += pixel;
             totalPixelTemp += pixel;
         }
-
-        bufferRelease(fb);
+        esp_camera_fb_return(fb);
 
         averagePixelTemp = totalPixelTemp / (WIDTH * HEIGHT);
 
