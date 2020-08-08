@@ -65,8 +65,6 @@ camera_fb_t* bufferCapture() {
     camera_fb_t *fb = esp_camera_fb_get();
 
     if (fb) {
-        Serial.println(fb->len);
-        /*
         uint8_t *_buf = new uint8_t[fb->len];
         memcpy(_buf, fb->buf, fb->len);
         //_buf[fb->len] = 0;
@@ -78,7 +76,7 @@ camera_fb_t* bufferCapture() {
         //fbc->timestamp = fb->timestamp;
 
         esp_camera_fb_return(fb);
-        */
+
     } else fbc = NULL;
     return fbc;
 }
