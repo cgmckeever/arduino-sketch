@@ -1,6 +1,5 @@
 #include "esp_camera.h"
 #include "camera_pins.h"
-#include "html.h"
 
 #include "fd_forward.h"
 
@@ -103,7 +102,7 @@ camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
             _jpg_buf_len = fb->len;
         }
         format = fb->format;
-    } else Serial.println("Camera capture failed");
+    } else loggerln("Camera capture failed");
 
     return fb;
 }
@@ -126,7 +125,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
         if(fb->width > 400) {
             if(fb->format != PIXFORMAT_JPEG) {
                 if(!frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len)) {
-                    Serial.println("JPEG compression failed");
+                    loggerln("JPEG compression failed");
                 }
             } else captured = true;
         } else {
@@ -135,7 +134,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
                 if(fmt2rgb888(fb->buf, fb->len, fb->format, image_matrix->item)) {
                     if (fb->format != PIXFORMAT_JPEG) {
                         if(!fmt2jpg(image_matrix->item, fb->width*fb->height*3, fb->width, fb->height, PIXFORMAT_RGB888, 90, &_jpg_buf, &_jpg_buf_len)) {
-                            Serial.println("fmt2jpg failed");
+                            loggerln("fmt2jpg failed");
                         }
                     } else captured = true;
                 }
@@ -147,17 +146,17 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
             _jpg_buf_len = fb->len;
             _jpg_buf = fb->buf;
         }
-    } else Serial.println("Camera capture failed");
+    } else loggerln("Camera capture failed");
 }
 
 void getSettings() {
     sensor_t * sensor = esp_camera_sensor_get();
 
-    Serial.print("Framesize: ");
-    Serial.println(sensor->status.framesize);
-    Serial.print("Quality: ");
-    Serial.println(sensor->status.quality);
-    Serial.print("Effect: ");
-    Serial.println(sensor->status.special_effect);
-    Serial.println("=================================");
+    logger("Framesize: ");
+    loggerln(sensor->status.framesize);
+    logger("Quality: ");
+    loggerln(sensor->status.quality);
+    logger("Effect: ");
+    loggerln(sensor->status.special_effect);
+    loggerln("=================================");
 }

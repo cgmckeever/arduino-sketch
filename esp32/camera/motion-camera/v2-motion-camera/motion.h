@@ -43,7 +43,7 @@ bool motionLoop() {
     if (!motionDisabled) {
         isDetecting = true;
         if (!capture_still()) {
-            Serial.println("Failed motion capture");
+            loggerln("Failed motion capture");
         } else {
             motionDetected = motion_detect();
             update_frame();
@@ -59,7 +59,7 @@ void motionSettings() {
         sensor_t * sensor = esp_camera_sensor_get();
         sensor->set_pixformat(sensor, PIXFORMAT_GRAYSCALE);
         sensor->set_framesize(sensor, MOTION_FRAME);
-        Serial.println("Motion Settings Enabled");
+        loggerln("Motion Settings Enabled");
     }
 }
 
@@ -108,7 +108,7 @@ bool capture_still() {
                 current_frame[y][x] /= BLOCK_SIZE * BLOCK_SIZE;
 
 #if MOTION_DEBUG
-        Serial.println("Current frame:");
+        loggerln("Current frame:");
         print_frame(current_frame);
 #endif
     } else return false;
@@ -129,10 +129,10 @@ bool motion_detect() {
                 changes += 1;
 
                 if (MOTION_DEBUG) {
-                    Serial.print("diff\t");
-                    Serial.print(y);
-                    Serial.print('\t');
-                    Serial.println(x);
+                    logger("diff\t");
+                    logger(y);
+                    logger('\t');
+                    loggerln(x);
                 }
             }
         }
@@ -169,13 +169,13 @@ void print_state(uint16_t changes, uint16_t blocks, bool motionDetected) {
         triggers = "Triggered " + (String)motionTriggers;
     }
 
-    Serial.print("========== ");
-    Serial.print(label);
-    Serial.print(changes);
-    Serial.print(" out of ");
-    Serial.print(blocks);
-    Serial.print(" Blocks Changes ========== ");
-    Serial.println(triggers);
+    logger("========== ");
+    logger(label);
+    logger(changes);
+    logger(" out of ");
+    logger(blocks);
+    logger(" Blocks Changes ========== ");
+    loggerln(triggers);
 }
 
 /**
@@ -185,10 +185,10 @@ void print_state(uint16_t changes, uint16_t blocks, bool motionDetected) {
 void print_frame(uint16_t frame[H][W]) {
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
-            Serial.print(frame[y][x]);
-            Serial.print('\t');
+            logger(frame[y][x]);
+            logger('\t');
         }
 
-        Serial.println();
+        loggerln("");
     }
 }

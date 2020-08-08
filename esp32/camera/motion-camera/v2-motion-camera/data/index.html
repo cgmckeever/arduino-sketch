@@ -181,8 +181,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', function (event) {
             // const baseHost = document.location.origin
-            const baseHost = "http://192.168.1.120"
-            const streamURL = baseHost + ':81'
+            const hostName = window.location.hostname
+            const baseHost = "http://" + hostName
+            const streamURL = "ws://" + hostName + '/stream'
+            const logURL = "ws://" + hostName + '/log'
 
             const closeButton = document.getElementById('close-image')
             const viewContainer = document.getElementById('image-container')
@@ -191,6 +193,14 @@
             const streamButton = document.getElementById('stream-button')
             const stillButton = document.getElementById('still-button')
 
+            var ws;
+            var isStreaming = false;
+            const logSocket = new WebSocket(logURL);
+
+            logSocket.onmessage = message => {
+                console.log(message.data);
+            }
+
             const hide = el => {
                 el.classList.add('hidden')
             }
@@ -198,16 +208,23 @@
                 el.classList.remove('hidden')
             }
 
-            const stopStream = () => {
-                window.stop();
-                streamButton.innerHTML = 'Start Stream'
-                hide(viewContainer)
-             }
-
             const startStream = () => {
-                viewContent.src = `${streamURL}/stream`
+                ws = new WebSocket(streamURL)
+                isStreaming = true;
+                ws.onmessage = message => {
+                    if (message.data instanceof Blob) {
+                      var urlObject = URL.createObjectURL(message.data);
+                      viewContent.src = urlObject;
+                }};
                 show(viewContainer)
                 streamButton.innerHTML = 'Stop Stream'
+            }
+
+            const stopStream = () => {
+                // window.stop();
+                streamButton.innerHTML = 'Start Stream'
+                hide(viewContainer)
+                if (isStreaming) ws.close();
             }
 
             streamButton.onclick = () => {
@@ -232,10 +249,10 @@
                 getStill()
             }
 
-            
+
             hide(viewContainer)
         })
-        
+
     </script>
     </body>
 </html>

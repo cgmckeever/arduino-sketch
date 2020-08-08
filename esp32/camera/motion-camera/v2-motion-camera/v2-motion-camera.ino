@@ -3,12 +3,13 @@ String deviceName = (String) config.deviceName;
 
 /* == web/sockets ==*/
 AsyncWebServer webServer(80);
-AsyncWebSocket webSocket("/stream");
+AsyncWebSocket streamSocket("/stream");
 int lastStreamTime = 0;
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera.h"
 
+/** == used for capture/chunk streaming == **/
 uint8_t* captureBuf;
 size_t captureLen;
 camera_fb_t *captureFB;
@@ -40,7 +41,6 @@ TaskHandle_t Task1;
 
 void setup(void) {
     Serial.begin(115200);
-    DEBUG_MODE = true;
     initSD();
 
     configSetup();
@@ -63,18 +63,8 @@ void setup(void) {
     motionTimer.every(500, timedMotion);
 }
 
-int clientCount() {
-    AsyncWebSocket::AsyncWebSocketClientLinkedList clients = webSocket.getClients();
-    int connected = 0;
-    for(const auto& c: clients) {
-        connected += 1;
-    }
-    return connected;
-}
-
-
-void espSocket() {
-    if (clientCount() > 0) {
+void sockets() {
+    if (streamSocket.count() > 0) {
         disableMotion();
         if (cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
             streamWait = 100;
@@ -91,7 +81,7 @@ void espSocket() {
             camera_fb_t *fb = capture(buf, len);
             if (fb) {
                 max_ws_queued_messages = 2;
-                webSocket.binaryAll(buf, len);
+                streamSocket.binaryAll(buf, len);
                 bufferRelease(fb);
                 cameraRelease(isStream);
 
@@ -110,8 +100,7 @@ void loop() {
     motionTimer.tick();
     //motionLoop();
 
-    espSocket();
-    webSocket.cleanupClients();
+    sockets();
 }
 
 bool timedMotion(void*) {
@@ -126,7 +115,7 @@ bool timedMotion(void*) {
                     if (fb->format != PIXFORMAT_JPEG) free(buf);
                     bufferRelease(fb);
                     lastMotionAlertAt = time(NULL);
-                } else Serial.println("Motion Alert Skipped");
+                } else loggerln("Motion Alert Skipped");
 
                 motionTriggers = 0;
             }
@@ -140,7 +129,7 @@ bool timedMotion(void*) {
 void send(String path="") {
     if (!wifiConnected) return;
 
-    Serial.println("Prepping Email");
+    loggerln("Prepping Email");
 
     SMTPData smtp;
     smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
@@ -151,14 +140,14 @@ void send(String path="") {
     smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
     if (path != "") {
-        Serial.println("Attaching: " + path);
+        loggerln("Attaching: " + path);
         smtp.addAttachFile(path);
         smtp.setFileStorageType(MailClientStorageType::SD);
     }
 
     if (MailClient.sendMail(smtp)) {
-        Serial.println("Alert Sent");
-    } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+        loggerln("Alert Sent");
+    } else loggerln("Error sending Email, " + MailClient.smtpErrorReason());
 
     smtp.empty();
     alertsSent += 1;
@@ -175,7 +164,7 @@ static esp_err_t indexHandler(httpd_req_t *req){
 } */
 
 bool captureCallback(argsSend *args) {
-    Serial.println("Delay Send");
+    loggerln("Delay Send");
     send(args->path);
     enableMotion(resetTriggers);
     delete args;
@@ -207,7 +196,7 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
 
     String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
     path = saveFile(buf, len, path);
-    if (path == "") Serial.println("Photo failed to save.");
+    if (path == "") loggerln("Photo failed to save.");
     flash(false);
 
     argsSend *args = new argsSend();
@@ -228,7 +217,8 @@ int chunkBuffer(char *buffer, size_t maxLen, size_t index)
 
     if (len > 0) {
         if (index == 0) {
-          Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
+            loggerln("Sending Image Complete.");
+            Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
         }
         memcpy_P(buffer, captureBuf + index, len);
     } else {
@@ -239,12 +229,11 @@ int chunkBuffer(char *buffer, size_t maxLen, size_t index)
     return len;
 }
 
-
 void registerCameraServer() {
-    webServer.addHandler(&webSocket);
+    webServer.addHandler(&streamSocket);
 
     webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
-        Serial.println("/capture");
+        loggerln("/capture");
         cameraMode = isCapture;
         streamWait = 1000;
 
@@ -254,6 +243,7 @@ void registerCameraServer() {
             streamWait = 1000;
             if (millis() - waitStart > 1200) {
                 request->send(200, "text/plain", "Capture Timeout");
+                loggerln("Capture timeout");
                 cameraRelease(isCapture);
                 return;
             }

@@ -24,6 +24,7 @@ const char *mainJS = (char *)"/main.js";
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 extern AsyncWebServer webServer;
+AsyncWebSocket logSocket("/log");
 
 /* == NTP ==*/
 #include <NTPClient.h>
@@ -34,6 +35,12 @@ time_t bootTime = 0;
 /* == Timer ==*/
 #include <arduino-timer.h>
 Timer<1, millis, void *> timer;
+
+void socketLogger(String msg);
+template<typename T>
+void logger(T msg, bool newline = false);
+template<typename T>
+void loggerln(T msg);
 
 void bootNotify() {
     if (!wifiConnected) return;
@@ -101,7 +108,7 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
             handle.close();
         }
     } else {
-        Serial.println("No SD Card Attached/Initialized");
+        loggerln("No SD Card Attached/Initialized");
         path = "";
     }
 
@@ -110,7 +117,7 @@ String saveFile(unsigned char *buf, unsigned int len, String path) {
 
 bool rebootCallback(void *) {
     ESP.restart();
-    Serial.println('Rebooting...!');
+    loggerln('Rebooting...!');
     return false;
 }
 
@@ -121,13 +128,39 @@ void initHTTP(int port=80) {
     });
 
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "Hello world!");
+        loggerln("/");
+        request->send(SPIFFS, "/index.html", "text/html");
     });
 
+    webServer.addHandler(&logSocket);
     webServer.begin();
 
-    Serial.print("Ready at: http://");
-    Serial.print(WiFi.localIP());
-    Serial.print(":");
-    Serial.println(port);
+    logger("Ready at: http://");
+    logger(WiFi.localIP());
+    logger(":");
+    loggerln(port);
+
+    SPIFFS.begin();
 }
+
+void socketLogger(String msg) {
+    if(logSocket.count() > 0) logSocket.textAll(msg);
+}
+
+template<typename T>
+void logger(T msg, bool newline) {
+    bool debug = DEBUG_MODE;
+    DEBUG_MODE = true;
+    DebugPrint(msg);
+    if (newline) DebugPrintln(F(""));
+    socketLogger((String) msg);
+    Serial.flush();
+    DEBUG_MODE = debug;
+}
+
+template<typename T>
+void loggerln(T msg) {
+    logger(msg, true);
+}
+
+
