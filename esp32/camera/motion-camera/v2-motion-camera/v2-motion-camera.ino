@@ -163,16 +163,6 @@ void send(String path="") {
     alertsSent += 1;
 }
 
-
-/*
-static esp_err_t indexHandler(httpd_req_t *req){
-    Serial.println("/index");
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-
-    return httpd_resp_send(req, (const char *)index_html_gz, index_html_gz_len);
-} */
-
 bool captureCallback(argsSend *args) {
     loggerln("Delay Send");
     send(args->path);
@@ -245,6 +235,17 @@ int chunkBuffer(char *buffer, size_t maxLen, size_t index)
 
 void registerCameraServer() {
     webServer.addHandler(&streamSocket);
+
+    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
+        loggerln("/config");
+        request->send(200, "application/json", configJSON());
+    });
+
+    AsyncCallbackJsonWebHandler* configHandler = new AsyncCallbackJsonWebHandler("/rest/endpoint", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        //JsonObject& jsonObj = json.as<JsonObject>();
+        // ...
+    });
+    webServer.addHandler(configHandler);
 
     webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("/capture");

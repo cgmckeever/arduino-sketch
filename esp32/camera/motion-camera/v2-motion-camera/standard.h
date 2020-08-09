@@ -23,6 +23,7 @@ const char *mainJS = (char *)"/main.js";
 /* == HTTP Server ==*/
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include "AsyncJson.h"
 extern AsyncWebServer webServer;
 AsyncWebSocket logSocket("/log");
 
