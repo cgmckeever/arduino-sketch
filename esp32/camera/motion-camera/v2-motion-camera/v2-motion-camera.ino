@@ -240,7 +240,9 @@ void registerCameraServer() {
 
     webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("/config");
-        request->send(200, "application/json", configJSON());
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", configJSON());
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
     });
 
     AsyncCallbackJsonWebHandler* configHandler = new AsyncCallbackJsonWebHandler("/rest/endpoint", [](AsyncWebServerRequest *request, JsonVariant &json) {
@@ -276,12 +278,12 @@ void registerCameraServer() {
         sensor->set_framesize(sensor, FRAMESIZE_SVGA);
 
         captureFB = capture(captureBuf, captureLen);
-        saveBuffer(captureBuf, captureLen, "jpg");
+        String path = saveBuffer(captureBuf, captureLen, "jpg");
 
         AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
             return chunkBuffer((char *) buffer, maxLen, index);
         });
-        response->addHeader("Content-Disposition", "inline; filename=capture.jpg");
+        response->addHeader("Content-Disposition", "inline; filename=" + path);
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     });
