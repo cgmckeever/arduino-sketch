@@ -89,6 +89,7 @@ camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
 
 void updateParam(String param, char* value) {
     Serial.println(param);
+    // JsonVariant; value.as<T>()
     Serial.println(value);
 }
 
