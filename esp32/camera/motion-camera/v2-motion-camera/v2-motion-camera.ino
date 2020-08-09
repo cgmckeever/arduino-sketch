@@ -83,7 +83,7 @@ void sockets() {
             camera_fb_t *fb = capture(jpgBuf, jpgLen);
 
             if (fb) {
-                max_ws_queued_messages = 3;
+                max_ws_queued_messages = 2;
                 streamSocket.binaryAll(jpgBuf, jpgLen);
 
                 bufferRelease(fb);
@@ -258,7 +258,7 @@ void registerCameraServer() {
         while (*cameraInUse == true) {
             *cameraMode = isCapture;
             streamWait = 1000;
-            if (millis() - waitStart > 3000) {
+            if (millis() - waitStart > 1000) {
                 request->send(200, "text/plain", "Capture Timeout");
                 loggerln("Capture timeout");
                 cameraRelease(isCapture);

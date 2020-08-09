@@ -18,6 +18,7 @@ void configSetup() {
     configManager.addParameter("deviceName", config.deviceName, DEVICENAMELEN);
 
     configManager.setAPCallback(APCallback);
+    configManager.setAPFilename("index.ap.html");
 
     //disable brownout detector
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
@@ -28,11 +29,11 @@ void configSetup() {
 }
 
 void serveAssets(WebServer *server) {
-  server->on("/styles.css", HTTPMethod::HTTP_GET, [server](){
+  server->on("/styles.ap.css", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(stylesCSS, mimeCSS);
   });
 
-  server->on("/main.js", HTTPMethod::HTTP_GET, [server](){
+  server->on("/main.ap.js", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(mainJS, mimeJS);
   });
 }
