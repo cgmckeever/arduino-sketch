@@ -222,9 +222,9 @@
 
             const stopStream = () => {
                 // window.stop();
+                if (isStreaming) ws.close();
                 streamButton.innerHTML = 'Start Stream'
                 hide(viewContainer)
-                if (isStreaming) ws.close();
             }
 
             streamButton.onclick = () => {

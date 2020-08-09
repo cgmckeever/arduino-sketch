@@ -144,7 +144,10 @@ void initHTTP(int port=80) {
 }
 
 void socketLogger(String msg) {
-    if(logSocket.count() > 0) logSocket.textAll(msg);
+    if(logSocket.count() > 0) {
+        max_ws_queued_messages = 8;
+        logSocket.textAll(msg);
+    }
 }
 
 template<typename T>

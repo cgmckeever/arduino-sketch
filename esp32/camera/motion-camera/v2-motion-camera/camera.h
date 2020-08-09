@@ -64,55 +64,31 @@ void cameraRelease(cameraModes current) {
     *cameraInUse = false;
 }
 
-camera_fb_t* bufferCapture() {
-    camera_fb_t *fbc = new camera_fb_t;
-    camera_fb_t *fb = esp_camera_fb_get();
-    return fb;
-
-    if (fb) {
-        uint8_t *_buf = new uint8_t[fb->len];
-        memcpy(_buf, fb->buf, fb->len);
-        //_buf[fb->len] = 0;
-        fbc->buf = _buf;
-        fbc->len = fb->len;
-        fbc->width = fb->width;
-        fbc->height = fb->height;
-        fbc->format = fb->format;
-        //fbc->timestamp = fb->timestamp;
-
-        esp_camera_fb_return(fb);
-
-    } else fbc = NULL;
-    return fbc;
-}
-
 void bufferRelease(camera_fb_t* fb) {
-    return;
-    delete(fb->buf);
-    delete(fb);
-    //esp_camera_fb_return(fb);
+    uint8_t *buf;
+    buf = fb->buf;
+    *buf = NULL;
+    esp_camera_fb_return(fb);
 }
 
 camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
     _jpg_buf_len = 0;
-    pixformat_t format;
 
-    camera_fb_t *fb = bufferCapture();
+    camera_fb_t *fb = esp_camera_fb_get();
 
     if (fb) {
-        if(fb->format != PIXFORMAT_JPEG) {
-            frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
-        } else {
-            *_jpg_buf = *fb->buf;
+        if(fb->format == PIXFORMAT_JPEG) {
+            _jpg_buf = fb->buf;
             _jpg_buf_len = fb->len;
-        }
-        format = fb->format;
+        } else frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
+
     } else loggerln("Camera capture failed");
 
     return fb;
 }
 
 void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
+    return; // this hasnt been tested in a while
     bool captured = false;
     _jpg_buf_len = 0;
     _jpg_buf = NULL;
@@ -123,8 +99,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
     sensor->set_pixformat(sensor, PIXFORMAT_JPEG);
     sensor->set_framesize(sensor, sensor->status.framesize);
 
-    camera_fb_t *fb = bufferCapture();
-    bufferRelease(fb);
+    camera_fb_t *fb = esp_camera_fb_get();
 
     if (fb) {
         if(fb->width > 400) {
@@ -148,7 +123,7 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
         }
 
         if (captured) {
-            *_jpg_buf = *fb->buf;
+            _jpg_buf = fb->buf;
             _jpg_buf_len = fb->len;
         }
     } else loggerln("Camera capture failed");

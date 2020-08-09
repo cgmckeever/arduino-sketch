@@ -75,13 +75,14 @@ void sockets() {
 
             sensor_t *sensor = esp_camera_sensor_get();
             sensor->set_pixformat(sensor, pixformat);
-            sensor->set_framesize(sensor, FRAMESIZE_QVGA);
+            sensor->set_framesize(sensor, FRAMESIZE_VGA);
 
             uint8_t *jpgBuf;
             size_t jpgLen;
             camera_fb_t *fb = capture(jpgBuf, jpgLen);
+
             if (fb) {
-                max_ws_queued_messages = 2;
+                max_ws_queued_messages = 3;
 
                 streamSocket.binaryAll(jpgBuf, jpgLen);
                 bufferRelease(fb);
@@ -229,13 +230,13 @@ int chunkBuffer(char *buffer, size_t maxLen, size_t index)
 
     if (len > 0) {
         if (index == 0) {
-            loggerln("Sending Image Complete.");
+            loggerln("Image Spool Complete.");
             Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
         }
         memcpy_P(buffer, captureBuf + index, len);
     } else {
+        *captureBuf = NULL;
         bufferRelease(captureFB);
-        captureBuf = NULL;
         cameraRelease(isCapture);
     }
 
