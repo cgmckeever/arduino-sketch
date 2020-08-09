@@ -87,6 +87,11 @@ camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
     return fb;
 }
 
+void updateParam(String param, char* value) {
+    Serial.println(param);
+    Serial.println(value);
+}
+
 String configJSON() {
     StaticJsonDocument<1024> doc;
     JsonObject config = doc.to<JsonObject>();

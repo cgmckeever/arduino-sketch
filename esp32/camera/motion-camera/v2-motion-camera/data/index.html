@@ -692,7 +692,12 @@
 
                 var o = {};
                 o[el.id] = value
-                console.log(o);
+
+                fetch(`${baseHost}/config`, {
+                    method: 'PUT',
+                    body: JSON.stringify(o),
+                    headers: { "Content-type" : "application/json" },
+                }).then(response => console.log(response))
             }
 
         })

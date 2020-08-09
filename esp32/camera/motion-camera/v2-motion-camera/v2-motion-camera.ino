@@ -239,15 +239,22 @@ void registerCameraServer() {
     webServer.addHandler(&streamSocket);
 
     webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
-        loggerln("/config");
+        loggerln("GET /config");
         AsyncWebServerResponse *response = request->beginResponse(200, "application/json", configJSON());
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     });
 
-    AsyncCallbackJsonWebHandler* configHandler = new AsyncCallbackJsonWebHandler("/rest/endpoint", [](AsyncWebServerRequest *request, JsonVariant &json) {
-        //JsonObject& jsonObj = json.as<JsonObject>();
-        // ...
+    AsyncCallbackJsonWebHandler* configHandler = new AsyncCallbackJsonWebHandler("/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
+        loggerln("PUT /config");
+
+        for (JsonPair kv : json.as<JsonObject>()) {
+            updateParam(kv.key().c_str(), kv.value().as<char*>());
+        }
+
+        AsyncWebServerResponse *response = request->beginResponse(200);
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        request->send(response);
     });
     webServer.addHandler(configHandler);
 
