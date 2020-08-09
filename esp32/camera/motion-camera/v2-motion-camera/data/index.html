@@ -632,12 +632,12 @@
                 .then(function (response) {
                     return response.json()
                 })
-                .then(function (state) {
+                .then(function (config) {
                     document
                         .querySelectorAll('.default-action')
                         .forEach(el => {
-                        updateValue(el, state[0][el.id], false)
-                    })
+                            updateValue(el, config[el.id], false)
+                        })
                 })
 
             const updateValue = (el, value, updateRemote) => {
@@ -689,6 +689,10 @@
                   default:
                     return
                 }
+
+                var o = {};
+                o[el.id] = value
+                console.log(o);
             }
 
         })
