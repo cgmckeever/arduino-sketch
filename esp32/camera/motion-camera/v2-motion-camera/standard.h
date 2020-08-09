@@ -93,7 +93,7 @@ bool closeSD() {
     sdEnabled = false;
 }
 
-String saveFile(unsigned char *buf, unsigned int len, String path) {
+String saveFile(unsigned char* buf, unsigned int len, String path) {
     if (sdEnabled) {
         fs::FS &fs = SD;
         Serial.printf("Picture file name: %s\n", path.c_str());

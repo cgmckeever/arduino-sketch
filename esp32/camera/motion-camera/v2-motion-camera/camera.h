@@ -67,6 +67,7 @@ void cameraRelease(cameraModes current) {
 camera_fb_t* bufferCapture() {
     camera_fb_t *fbc = new camera_fb_t;
     camera_fb_t *fb = esp_camera_fb_get();
+    return fb;
 
     if (fb) {
         uint8_t *_buf = new uint8_t[fb->len];
@@ -86,6 +87,7 @@ camera_fb_t* bufferCapture() {
 }
 
 void bufferRelease(camera_fb_t* fb) {
+    return;
     delete(fb->buf);
     delete(fb);
     //esp_camera_fb_return(fb);
@@ -101,7 +103,7 @@ camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
         if(fb->format != PIXFORMAT_JPEG) {
             frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
         } else {
-            _jpg_buf = fb->buf;
+            *_jpg_buf = *fb->buf;
             _jpg_buf_len = fb->len;
         }
         format = fb->format;
@@ -146,8 +148,8 @@ void get_chunk(uint8_t*& _jpg_buf , size_t& _jpg_buf_len){
         }
 
         if (captured) {
+            *_jpg_buf = *fb->buf;
             _jpg_buf_len = fb->len;
-            _jpg_buf = fb->buf;
         }
     } else loggerln("Camera capture failed");
 }

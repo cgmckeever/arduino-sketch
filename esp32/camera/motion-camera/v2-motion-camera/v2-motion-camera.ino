@@ -77,17 +77,17 @@ void sockets() {
             sensor->set_pixformat(sensor, pixformat);
             sensor->set_framesize(sensor, FRAMESIZE_QVGA);
 
-            uint8_t* buf;
-            size_t len;
-            camera_fb_t *fb = capture(buf, len);
+            uint8_t *jpgBuf;
+            size_t jpgLen;
+            camera_fb_t *fb = capture(jpgBuf, jpgLen);
             if (fb) {
                 max_ws_queued_messages = 2;
 
-                streamSocket.binaryAll(buf, len);
+                streamSocket.binaryAll(jpgBuf, jpgLen);
                 bufferRelease(fb);
 
                 lastStreamTime = millis();
-                if (fb->format != PIXFORMAT_JPEG) free(buf);
+                if (fb->format != PIXFORMAT_JPEG) free(jpgBuf);
             }
             cameraRelease(isStream);
         }
@@ -118,10 +118,10 @@ bool timedMotion(void*) {
         if (motionLoop()) {
             if (motionTriggers >= motionTriggerLevel) {
                 if (time(NULL) - lastMotionAlertAt > 30) {
-                    uint8_t* buf;
-                    size_t len;
-                    camera_fb_t *fb = captureSend(buf, len);
-                    if (fb->format != PIXFORMAT_JPEG) free(buf);
+                    uint8_t *jpgBuf;
+                    size_t jpgLen;
+                    camera_fb_t *fb = captureSend(jpgBuf, jpgLen);
+                    if (fb->format != PIXFORMAT_JPEG) free(jpgBuf);
                     bufferRelease(fb);
                     lastMotionAlertAt = time(NULL);
                 } else loggerln("Motion Alert Skipped");
@@ -178,7 +178,7 @@ bool captureCallback(argsSend *args) {
     delete args;
     return false;
 }
-camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
+camera_fb_t* captureSend(uint8_t*& jpgBuf, size_t& jpgLen) {
     pixformat_t format;
     pixformat_t pixformat = PIXFORMAT_JPEG;
     //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
@@ -189,7 +189,7 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
 
     //flash(true);
     int counter = 0;
-    camera_fb_t *fb = capture(buf, len);
+    camera_fb_t *fb = capture(jpgBuf, jpgLen);
 
     /*
     while (counter < 6 && format != pixformat) {
@@ -201,7 +201,7 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
     */
     flash(false);
 
-    saveBuffer(buf, len);
+    String path = saveBuffer(jpgBuf, jpgLen, "jpg");
 
     argsSend *args = new argsSend();
     args->path = path;
@@ -210,8 +210,8 @@ camera_fb_t* captureSend(uint8_t*& buf, size_t& len) {
     return fb;
 }
 
-String saveBuffer(uint8_t* buf, size_t len) {
-    String path = "/picture." + String(time(NULL)) + "." + esp_random() + ".jpg";
+String saveBuffer(uint8_t* buf, size_t len, String ext) {
+    String path = "/picture." + String(time(NULL)) + "." + esp_random() + "." + ext;
     path = saveFile(buf, len, path);
     flash(false);
     if (path == "") loggerln("Photo failed to save.");
@@ -221,7 +221,7 @@ String saveBuffer(uint8_t* buf, size_t len) {
 
 int chunkBuffer(char *buffer, size_t maxLen, size_t index)
 {
-    size_t max   = (ESP.getFreeHeap() / 3) & 0xFFE0;
+    size_t max  = (ESP.getFreeHeap() / 3) & 0xFFE0;
 
     size_t len = captureLen - index;
     if (len > maxLen) len = maxLen;
@@ -272,7 +272,7 @@ void registerCameraServer() {
         sensor->set_framesize(sensor, FRAMESIZE_SVGA);
 
         captureFB = capture(captureBuf, captureLen);
-        saveBuffer(captureBuf, captureLen);
+        saveBuffer(captureBuf, captureLen, "jpg");
 
         AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
             return chunkBuffer((char *) buffer, maxLen, index);
