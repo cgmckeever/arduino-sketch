@@ -249,7 +249,8 @@ void registerCameraServer() {
         loggerln("PUT /config");
 
         for (JsonPair kv : json.as<JsonObject>()) {
-            updateParam(kv.key().c_str(), kv.value().as<char*>());
+            char* value = (char*) kv.value().as<char*>();
+            updateParam(kv.key().c_str(), value);
         }
 
         AsyncWebServerResponse *response = request->beginResponse(200);
