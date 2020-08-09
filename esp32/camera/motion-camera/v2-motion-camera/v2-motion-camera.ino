@@ -83,24 +83,9 @@ void sockets() {
             camera_fb_t *fb = capture(jpgBuf, jpgLen);
 
             if (fb) {
-                max_ws_queued_messages = 12;
+                max_ws_queued_messages = 3;
+                streamSocket.binaryAll(jpgBuf, jpgLen);
 
-                size_t max  = 5728;
-                uint8_t *buffer = static_cast<uint8_t *>(malloc(max ));
-                size_t index = 0;
-                size_t len = jpgLen;
-                while (len > 0) {
-                    len = jpgLen - index;
-                    if (len > max) len = max;
-
-                    if (len > 0) {
-                        memcpy_P(buffer, jpgBuf + index, len);
-                        streamSocket.binaryAll(buffer, len);
-                        index += len;
-                    }
-                }
-
-                free(buffer);
                 bufferRelease(fb);
 
                 lastStreamTime = millis();
