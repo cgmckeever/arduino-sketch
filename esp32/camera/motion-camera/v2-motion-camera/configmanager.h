@@ -25,7 +25,7 @@ void configDefaults() {
   }
 
   if (config.captureFramesize < 1) config.captureFramesize = 9;
-  if (config.streamFramesize < 1) config.streamFramesize = 5;
+  if (config.streamFramesize < 1 || config.streamFramesize > 6) config.streamFramesize = 5;
   if (config.streamQueue < 1) config.streamQueue = 2;
 
   configManager.save();

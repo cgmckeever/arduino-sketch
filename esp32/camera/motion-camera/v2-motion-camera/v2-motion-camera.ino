@@ -95,7 +95,7 @@ void sockets() {
         }
     } else if (lastStreamTime > 0) {
         lastStreamTime = 0;
-        enableMotion();
+        if (!config.disableCameraMotion) enableMotion();
     }
 }
 
@@ -109,13 +109,13 @@ void loop() {
 
     sockets();
 
-    if (logSocket.count() > 0) {
+    if (logSocket.count() > 0 || config.disableCameraMotion) {
         disableMotion();
     } else enableMotion();
 }
 
 bool timedMotion(void*) {
-    if (*cameraMode == isReady && !motionDisabled && !config.disableCameraeMotion) {
+    if (*cameraMode == isReady && !motionDisabled && !config.disableCameraMotion) {
         cameraControl(isMotion);
         if (motionLoop()) {
             if (motionTriggers >= motionTriggerLevel) {
@@ -279,11 +279,13 @@ void registerCameraServer() {
 
             if (json.containsKey("config")) {
                 JsonObject configs = json["config"];
-                loggerln("Device Param");
                 for (JsonPair kv : configs) {
                     String key = kv.key().c_str();
-                    if (key = "captureFramesize") {
+                    loggerln("Device Param: " + key);
+                    if (key == "captureFramesize") {
                         config.captureFramesize = kv.value().as<int>();
+                    } else if (key == "streamFramesize") {
+                        config.streamFramesize = kv.value().as<int>();
                     }
                 }
                 configManager.save();
