@@ -76,14 +76,14 @@ void sockets() {
 
             sensor_t *sensor = esp_camera_sensor_get();
             sensor->set_pixformat(sensor, pixformat);
-            sensor->set_framesize(sensor, FRAMESIZE_VGA);
+            sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
 
             uint8_t *jpgBuf;
             size_t jpgLen;
             camera_fb_t *fb = capture(jpgBuf, jpgLen);
 
             if (fb) {
-                max_ws_queued_messages = 2;
+                max_ws_queued_messages = config.streamQueue;
                 streamSocket.binaryAll(jpgBuf, jpgLen);
 
                 bufferRelease(fb);
@@ -115,7 +115,7 @@ void loop() {
 }
 
 bool timedMotion(void*) {
-    if (*cameraMode == isReady && !motionDisabled) {
+    if (*cameraMode == isReady && !motionDisabled && !config.disableCameraeMotion) {
         cameraControl(isMotion);
         if (motionLoop()) {
             if (motionTriggers >= motionTriggerLevel) {
@@ -177,7 +177,7 @@ camera_fb_t* captureSend(uint8_t*& jpgBuf, size_t& jpgLen) {
 
     sensor_t *sensor = esp_camera_sensor_get();
     sensor->set_pixformat(sensor, pixformat);
-    sensor->set_framesize(sensor, FRAMESIZE_UXGA);
+    sensor->set_framesize(sensor, (framesize_t) config.captureFramesize);
 
     //flash(true);
     int counter = 0;
@@ -240,13 +240,26 @@ void registerCameraServer() {
 
     webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("GET /config");
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", configJSON());
+
+        StaticJsonDocument<1024> doc;
+        JsonObject json = doc.to<JsonObject>();
+
+        DynamicJsonDocument camera(1024);
+        auto error = deserializeJson(camera, configJSON());
+        json["camera"] = camera;
+        json["config"] = configManager.asJson();
+
+        String jsonResponse;
+        serializeJson(json, jsonResponse);
+
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", jsonResponse);
         response->addHeader("Access-Control-Allow-Origin", "*");
         request->send(response);
     });
 
     webServer.on("/config", HTTP_PUT, [](AsyncWebServerRequest *request) {},
         NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            loggerln("PUT /config");
             DynamicJsonDocument doc(1024);
             auto error = deserializeJson(doc, (const char*)data);
 
@@ -255,27 +268,29 @@ void registerCameraServer() {
                 return;
             }
 
-            for (JsonPair kv : doc.as<JsonObject>()) {
-                updateParam(kv.key().c_str(), kv.value().as<int>());
+            JsonObject json = doc.as<JsonObject>();
+
+            if (json.containsKey("camera")) {
+                JsonObject camera = json["camera"];
+                for (JsonPair kv : camera) {
+                    updateParam(kv.key().c_str(), kv.value().as<int>());
+                }
             }
+
+            if (json.containsKey("config")) {
+                JsonObject configs = json["config"];
+                loggerln("Device Param");
+                for (JsonPair kv : configs) {
+                    String key = kv.key().c_str();
+                    if (key = "captureFramesize") {
+                        config.captureFramesize = kv.value().as<int>();
+                    }
+                }
+                configManager.save();
+            }
+
             request->send(200);
     });
-
-    /* seems to kill websockets (memory?)
-    AsyncCallbackJsonWebHandler* configHandler = new AsyncCallbackJsonWebHandler("/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
-        loggerln("PUT /config");
-
-        for (JsonPair kv : json.as<JsonObject>()) {
-            char* value = (char*) kv.value().as<char*>();
-            updateParam(kv.key().c_str(), value);
-        }
-
-        AsyncWebServerResponse *response = request->beginResponse(200);
-        response->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(response);
-    });
-    webServer.addHandler(configHandler);
-    */
 
     webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("/capture");
@@ -301,7 +316,7 @@ void registerCameraServer() {
         pixformat_t pixformat = PIXFORMAT_JPEG;
         sensor_t *sensor = esp_camera_sensor_get();
         sensor->set_pixformat(sensor, pixformat);
-        sensor->set_framesize(sensor, FRAMESIZE_SVGA);
+        sensor->set_framesize(sensor, (framesize_t) config.captureFramesize);
 
         captureFB = capture(captureBuf, captureLen);
         String path = saveBuffer(captureBuf, captureLen, "jpg");

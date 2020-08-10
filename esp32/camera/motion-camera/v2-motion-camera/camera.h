@@ -147,36 +147,36 @@ void updateParam(String param, int value) {
 
 String configJSON() {
     StaticJsonDocument<1024> doc;
-    JsonObject config = doc.to<JsonObject>();
+    JsonObject camera = doc.to<JsonObject>();
 
     sensor_t *s = esp_camera_sensor_get();
-    config["framesize"] = s->status.framesize;
-    config["quality"] = s->status.quality;
-    config["brightness"] = s->status.brightness;
-    config["contrast"] = s->status.contrast;
-    config["saturation"] = s->status.saturation;
-    config["sharpness"] = s->status.sharpness;
-    config["special_effect"] = s->status.special_effect;
-    config["wb_mode"] = s->status.wb_mode;
-    config["awb"] = s->status.awb;
-    config["awb_gain"] = s->status.awb_gain;
-    config["aec"] = s->status.aec;
-    config["aec2"] = s->status.aec2;
-    config["ae_level"] = s->status.ae_level;
-    config["aec_value"] = s->status.aec_value;
-    config["agc"] = s->status.agc;
-    config["agc_gain"] = s->status.agc_gain;
-    config["gainceiling"] = s->status.gainceiling;
-    config["bpc"] = s->status.bpc;
-    config["wpc"] = s->status.wpc;
-    config["raw_gma"] = s->status.raw_gma;
-    config["lenc"] = s->status.lenc;
-    config["vflip"] = s->status.vflip;
-    config["hmirror"] = s->status.hmirror;
-    config["dcw"] = s->status.dcw;
-    config["colorbar"] = s->status.colorbar;
+    camera["framesize"] = s->status.framesize;
+    camera["quality"] = s->status.quality;
+    camera["brightness"] = s->status.brightness;
+    camera["contrast"] = s->status.contrast;
+    camera["saturation"] = s->status.saturation;
+    camera["sharpness"] = s->status.sharpness;
+    camera["special_effect"] = s->status.special_effect;
+    camera["wb_mode"] = s->status.wb_mode;
+    camera["awb"] = s->status.awb;
+    camera["awb_gain"] = s->status.awb_gain;
+    camera["aec"] = s->status.aec;
+    camera["aec2"] = s->status.aec2;
+    camera["ae_level"] = s->status.ae_level;
+    camera["aec_value"] = s->status.aec_value;
+    camera["agc"] = s->status.agc;
+    camera["agc_gain"] = s->status.agc_gain;
+    camera["gainceiling"] = s->status.gainceiling;
+    camera["bpc"] = s->status.bpc;
+    camera["wpc"] = s->status.wpc;
+    camera["raw_gma"] = s->status.raw_gma;
+    camera["lenc"] = s->status.lenc;
+    camera["vflip"] = s->status.vflip;
+    camera["hmirror"] = s->status.hmirror;
+    camera["dcw"] = s->status.dcw;
+    camera["colorbar"] = s->status.colorbar;
 
     String json;
-    serializeJson(config, json);
+    serializeJson(camera, json);
     return json;
 }
