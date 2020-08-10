@@ -87,10 +87,61 @@ camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
     return fb;
 }
 
-void updateParam(String param, char* value) {
-    Serial.println(param);
-    // JsonVariant; value.as<T>()
-    Serial.println(value);
+void updateParam(String param, int value) {
+    loggerln(param);
+    loggerln(value);
+
+    sensor_t *s = esp_camera_sensor_get();
+
+    if(param == "framesize") {
+        s->set_framesize(s, (framesize_t) value);
+    } else if (param ==  "hmirror") {
+        s->set_hmirror(s, value);
+    } else if (param == "vflip") {
+        s->set_vflip(s, value);
+    } else if (param == "quality") {
+        s->set_quality(s, value);
+    } else if (param == "contrast") {
+        s->set_contrast(s, value);
+    } else if (param == "brightness") {
+        s->set_brightness(s, value);
+    } else if (param == "saturation") {
+        s->set_saturation(s, value);
+    } else if (param == "gainceiling") {
+        s->set_gainceiling(s, (gainceiling_t) value);
+    } else if (param == "colorbar") {
+        s->set_colorbar(s, value);
+    } else if (param == "awb") {
+        s->set_whitebal(s, value);
+    } else if (param == "agc") {
+        s->set_gain_ctrl(s, value);
+    } else if (param == "aec") {
+        s->set_exposure_ctrl(s, value);
+    } else if (param == "awb_gain") {
+        s->set_awb_gain(s, value);
+    } else if (param == "agc_gain") {
+        s->set_agc_gain(s, value);
+    } else if (param == "aec_value") {
+        s->set_aec_value(s, value);
+    } else if (param == "aec2") {
+       s->set_aec2(s, value);
+    } else if (param == "dcw") {
+        s->set_dcw(s, value);
+    } else if (param == "bpc") {
+        s->set_bpc(s, value);
+    } else if (param == "wpc") {
+        s->set_wpc(s, value);
+    } else if (param == "lenc") {
+        s->set_lenc(s, value);
+    } else if (param == "raw_gma") {
+        s->set_raw_gma(s, value);
+    } else if (param == "special_effect") {
+        s->set_special_effect(s, value);
+    } else if (param == "wb_mode") {
+        s->set_wb_mode(s, value);
+    } else if (param == "ae_level") {
+        s->set_ae_level(s, value);
+    }
 }
 
 String configJSON() {

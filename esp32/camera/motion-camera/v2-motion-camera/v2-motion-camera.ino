@@ -245,6 +245,23 @@ void registerCameraServer() {
         request->send(response);
     });
 
+    webServer.on("/config", HTTP_PUT, [](AsyncWebServerRequest *request) {},
+        NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            DynamicJsonDocument doc(1024);
+            auto error = deserializeJson(doc, (const char*)data);
+
+            if (error) {
+                request->send(400);
+                return;
+            }
+
+            for (JsonPair kv : doc.as<JsonObject>()) {
+                updateParam(kv.key().c_str(), kv.value().as<int>());
+            }
+            request->send(200);
+    });
+
+    /* seems to kill websockets (memory?)
     AsyncCallbackJsonWebHandler* configHandler = new AsyncCallbackJsonWebHandler("/config", [](AsyncWebServerRequest *request, JsonVariant &json) {
         loggerln("PUT /config");
 
@@ -258,6 +275,7 @@ void registerCameraServer() {
         request->send(response);
     });
     webServer.addHandler(configHandler);
+    */
 
     webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("/capture");
