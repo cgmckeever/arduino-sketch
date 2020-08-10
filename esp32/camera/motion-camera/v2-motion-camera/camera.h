@@ -87,6 +87,7 @@ camera_fb_t* capture(uint8_t*& _jpg_buf, size_t& _jpg_buf_len) {
     return fb;
 }
 
+/* https://randomnerdtutorials.com/esp32-cam-ov2640-camera-settings/ */
 void updateParam(String param, int value) {
     loggerln(param);
     loggerln(value);
