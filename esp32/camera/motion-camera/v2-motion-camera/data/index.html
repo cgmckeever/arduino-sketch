@@ -537,8 +537,8 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function (event) {
-            const hostName = "192.168.1.10"
-            //const hostName = window.location.hostname
+            //const hostName = "192.168.1.10"
+            const hostName = window.location.hostname
             const baseHost = "http://" + hostName
             const streamURL = "ws://" + hostName + "/stream"
             const logURL = "ws://" + hostName + "/log"
