@@ -1,7 +1,9 @@
 #include "standard.h"
-String deviceName = (String) config.deviceName;
+char *deviceName = "FruitLoops";
+bool apMode = true;
 
 /* == web/sockets ==*/
+// https://github.com/me-no-dev/ESPAsyncWebServer
 AsyncWebServer webServer(80);
 AsyncWebSocket streamSocket("/stream");
 int lastStreamTime = 0;
@@ -36,23 +38,25 @@ Timer<5, millis, argsSend*> sendTimer;
 Timer<1, millis, void*> motionTimer;
 Timer<1, millis, void*> socketTimer;
 
-TaskHandle_t Task1;
-
-
 void setup(void) {
     Serial.begin(115200);
+    DEBUG_MODE = true;
     initSD();
 
     configSetup();
 
-    if (wifiConnected) {
+    if (apMode && wifiConnected) {
+        configManager.clearWifiSettings(true);
+        return;
+    }
+
+    if (wifiConnected || apMode) {
         timeClient.begin();
         setTime();
-
         //bootNotify();
 
+        // This will render AP settings impossible
         configManager.stopWebserver();
-
         registerCameraServer();
         initHTTP(80);
     }
@@ -257,6 +261,7 @@ void registerCameraServer() {
         request->send(response);
     });
 
+    // https://github.com/me-no-dev/ESPAsyncWebServer/issues/195
     webServer.on("/config", HTTP_PUT, [](AsyncWebServerRequest *request) {},
         NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
             loggerln("PUT /config");
@@ -288,7 +293,7 @@ void registerCameraServer() {
                         config.streamFramesize = kv.value().as<int>();
                     }
                 }
-                configManager.save();
+                configSave();
             }
 
             request->send(200);
