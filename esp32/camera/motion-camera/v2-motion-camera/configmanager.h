@@ -65,14 +65,6 @@ void configSetup() {
     configDefaults();
     wifiConnected = configManager.getMode() == station;
     //enable brownout detector
-
-    if (!wifiConnected) {
-      WiFi.softAPdisconnect();
-      configManager.setAPName(config.deviceName);
-      configManager.setAPPassword(config.apPassword);
-      configManager.startAP();
-      Serial.println(config.deviceName);
-    }
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1);
 
 }

@@ -1,6 +1,5 @@
 #include "standard.h"
 char *deviceName = "FruitLoops";
-bool apMode = true;
 
 /* == web/sockets ==*/
 // https://github.com/me-no-dev/ESPAsyncWebServer
@@ -45,12 +44,7 @@ void setup(void) {
 
     configSetup();
 
-    if (apMode && wifiConnected) {
-        configManager.clearWifiSettings(true);
-        return;
-    }
-
-    if (wifiConnected || apMode) {
+    if (wifiConnected) {
         timeClient.begin();
         setTime();
         //bootNotify();
