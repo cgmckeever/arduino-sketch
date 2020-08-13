@@ -48,6 +48,7 @@ bool initCamera() {
     sensor_t *s = esp_camera_sensor_get();
     s->set_aec_value(s, config.camera_exposure);
     s->set_exposure_ctrl(s, config.camera_exposure_control);
+    s->set_lenc(s, config.camera_lenc);
 
     *cameraMode = isReady;
     *cameraInUse = false;

@@ -43,6 +43,7 @@ void setup(void) {
     initSD();
 
     configSetup();
+    //configDefaults();
 
     if (wifiConnected) {
         timeClient.begin();
