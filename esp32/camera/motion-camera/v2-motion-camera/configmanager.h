@@ -22,6 +22,7 @@ struct Config {
     int captureFramesize;
     int streamFramesize;
     int streamQueue;
+    int streamWait;
     bool disableCameraMotion;
     bool sendAlerts;
 
@@ -53,6 +54,7 @@ void configDefaults() {
   config.captureFramesize = 9;
   config.streamFramesize = 5;
   config.streamQueue = 2;
+  config.streamWait = 500;
   config.disableCameraMotion = true;
   config.sendAlerts = true;
 
@@ -71,6 +73,7 @@ void configSetup() {
     configManager.addParameter("captureFramesize", &config.captureFramesize);
     configManager.addParameter("streamFramesize", &config.streamFramesize);
     configManager.addParameter("streamQueue", &config.streamQueue);
+    configManager.addParameter("streamWait", &config.streamWait);
     configManager.addParameter("disableDeviceMotion", &config.disableCameraMotion);
     configManager.addParameter("sendAlerts", &config.sendAlerts);
 
