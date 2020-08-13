@@ -49,6 +49,8 @@ bool initCamera() {
     s->set_aec_value(s, config.camera_exposure);
     s->set_exposure_ctrl(s, config.camera_exposure_control);
     s->set_lenc(s, config.camera_lenc);
+    s->set_vflip(s, config.camera_vflip);
+    s->set_hmirror(s, config.camera_hmirror);
 
     *cameraMode = isReady;
     *cameraInUse = false;
