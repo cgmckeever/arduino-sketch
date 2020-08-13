@@ -15,7 +15,7 @@ uint8_t* captureBuf;
 size_t captureLen;
 camera_fb_t *captureFB;
 
-int streamWait = 100;
+int streamWait;
 
 /* == motion.h ==*/
 #define MOTION_DEBUG false
@@ -56,6 +56,7 @@ void setup(void) {
         motionTimer.every(500, timedMotion);
     }
 
+    streamWait = config.streamWait;
     initCamera();
     flash(false);
 }
@@ -66,7 +67,7 @@ void sockets() {
         disableMotion();
         if (*cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
             cameraControl(isStream);
-            streamWait = 100;
+            streamWait = config.streamWait;
 
             pixformat_t pixformat = PIXFORMAT_JPEG;
             //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
