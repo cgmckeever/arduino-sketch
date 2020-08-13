@@ -51,6 +51,7 @@ bool initCamera() {
     s->set_lenc(s, config.camera_lenc);
     s->set_vflip(s, config.camera_vflip);
     s->set_hmirror(s, config.camera_hmirror);
+    s->set_raw_gma(s, config.camera_raw_gma);
 
     *cameraMode = isReady;
     *cameraInUse = false;
@@ -150,6 +151,7 @@ void updateParam(String param, int value) {
         config.camera_lenc = value;
     } else if (param == "raw_gma") {
         s->set_raw_gma(s, value);
+        config.camera_raw_gma = value;
     } else if (param == "special_effect") {
         s->set_special_effect(s, value);
     } else if (param == "wb_mode") {

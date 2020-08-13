@@ -8,10 +8,10 @@ void APCallback(WebServer *server);
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
-//const char *settingsHTML = (char *)"/settings.html";
-//const char *resetHTML = (char *)"/reset.html";
-const char *stylesCSS = (char *)"/styles-ap.css";
-const char *mainJS = (char *)"/main-ap.js";
+//const char *settingsHTML = (char *) "/settings.html";
+//const char *resetHTML = (char *) "/reset.html";
+const char *stylesCSS = (char *) "/styles-ap.css";
+const char *mainJS = (char *) "/main-ap.js";
 
 const int DEVICENAMELEN = 28;
 const int APPASSLEN = 15;
@@ -32,6 +32,7 @@ struct Config {
     int camera_hmirror;
     int camera_vflip;
     int camera_lenc;
+    int camera_raw_gma;
     // BOOT TS?
 } config;
 
@@ -53,17 +54,18 @@ void configDefaults() {
 
   config.captureFramesize = 9;
   config.streamFramesize = 5;
-  config.streamQueue = 2;
+  config.streamQueue = maxStreamQueue;
   config.streamWait = 500;
   config.disableCameraMotion = true;
   config.sendAlerts = true;
 
   config.camera_xclk_freq_hz = 20000000;
-  config.camera_exposure = 800;
+  config.camera_exposure = 600;
   config.camera_exposure_control = 0;
   config.camera_hmirror = 0;
   config.camera_vflip = 0;
   config.camera_lenc = 0;
+  config.camera_raw_gma = 0;
 
   configSave();
 }
@@ -84,6 +86,7 @@ void configSetup() {
     configManager.addParameter("cameraHmirror", &config.camera_hmirror);
     configManager.addParameter("cameraVflip", &config.camera_vflip);
     configManager.addParameter("cameraLensCorrection", &config.camera_lenc);
+    configManager.addParameter("cameraRawGMA", &config.camera_raw_gma);
 
     configManager.setInitCallback(configDefaults);
     configManager.setAPCallback(APCallback);

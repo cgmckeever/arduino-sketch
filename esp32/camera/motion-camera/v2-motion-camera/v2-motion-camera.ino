@@ -1,3 +1,6 @@
+int streamWait;
+int maxStreamQueue = 2;
+
 #include "standard.h"
 char *deviceName = "FruitLoops";
 
@@ -14,8 +17,6 @@ int lastStreamTime = 0;
 uint8_t* captureBuf;
 size_t captureLen;
 camera_fb_t *captureFB;
-
-int streamWait;
 
 /* == motion.h ==*/
 #define MOTION_DEBUG false
@@ -288,6 +289,7 @@ void registerCameraServer() {
                         config.captureFramesize = kv.value().as<int>();
                     } else if (key == "streamFramesize") {
                         config.streamFramesize = kv.value().as<int>();
+                        config.streamQueue = config.streamFramesize > 4 ? 1 : maxStreamQueue;
                     }
                 }
             }
