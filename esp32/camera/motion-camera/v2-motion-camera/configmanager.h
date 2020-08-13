@@ -23,6 +23,7 @@ struct Config {
     int streamFramesize;
     int streamQueue;
     bool disableCameraMotion;
+    int camera_xclk_freq_hz;
     // BOOT TS?
 } config;
 
@@ -46,6 +47,7 @@ void configDefaults() {
   config.streamFramesize = 5;
   config.streamQueue = 2;
   config.disableCameraMotion = true;
+  config.camera_xclk_freq_hz = 20000000;
 
   configSave();
 }
@@ -57,9 +59,12 @@ void configSetup() {
     configManager.addParameter("streamQueue", &config.streamQueue);
     configManager.addParameter("disableDeviceMotion", &config.disableCameraMotion);
 
+    // Camera Settings
+    configManager.addParameter("cameraFreq", &config.camera_xclk_freq_hz);
+
     configManager.setInitCallback(configDefaults);
     configManager.setAPCallback(APCallback);
-    configManager.setAPFilename("/wifiConfig.html");
+    configManager.setAPFilename("wifiConfig.html");
 
     configManager.setAPName(deviceName);
 
@@ -69,8 +74,6 @@ void configSetup() {
     wifiConnected = configManager.getMode() == station;
     //enable brownout detector
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1);
-
-    //configDefaults();
 }
 
 IPAddress deviceIP() {

@@ -131,6 +131,13 @@ void initHTTP(int port=80) {
         request->send(200, "text/plain", "Configs Cleared");
     });
 
+    webServer.on("/default", HTTP_GET, [](AsyncWebServerRequest *request) {
+        loggerln("/default");
+        configDefaults();
+        timer.in(2000, rebootCallback);
+        request->send(200, "text/plain", "Configs Set to Defaults");
+    });
+
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("/");
         request->send(SPIFFS, "/index.html", "text/html");
