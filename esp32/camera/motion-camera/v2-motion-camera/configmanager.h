@@ -8,6 +8,11 @@ void APCallback(WebServer *server);
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 
+//const char *settingsHTML = (char *)"/settings.html";
+//const char *resetHTML = (char *)"/reset.html";
+const char *stylesCSS = (char *)"/styles-ap.css";
+const char *mainJS = (char *)"/main-ap.js";
+
 const int DEVICENAMELEN = 28;
 const int APPASSLEN = 15;
 

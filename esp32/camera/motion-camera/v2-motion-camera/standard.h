@@ -16,11 +16,6 @@ bool sdEnabled = false;
 /* == eMail ==*/
 #include "ESP32_MailClient.h"
 
-//const char *settingsHTML = (char *)"/settings.html";
-//const char *resetHTML = (char *)"/reset.html";
-const char *stylesCSS = (char *)"/styles-ap.css";
-const char *mainJS = (char *)"/main-ap.js";
-
 /* == ConfigManager ==*/
 #include "configmanager.h"
 
