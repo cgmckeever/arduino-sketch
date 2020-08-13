@@ -56,7 +56,7 @@ void setup(void) {
         motionTimer.every(500, timedMotion);
     }
 
-    streamWait = config.streamWait;
+    streamWait = setStreamWait();
     initCamera();
     flash(false);
 }
@@ -67,7 +67,7 @@ void sockets() {
         disableMotion();
         if (*cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
             cameraControl(isStream);
-            streamWait = config.streamWait;
+            streamWait = setStreamWait();
 
             pixformat_t pixformat = PIXFORMAT_JPEG;
             //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
@@ -81,7 +81,7 @@ void sockets() {
             camera_fb_t *fb = capture(jpgBuf, jpgLen);
 
             if (fb) {
-                max_ws_queued_messages = config.streamQueue;
+                max_ws_queued_messages = setStreamQueue();
                 streamSocket.binaryAll(jpgBuf, jpgLen);
 
                 bufferRelease(fb);
@@ -145,7 +145,7 @@ void send(String path="") {
     smtp.setSender("ESP32", emailSenderAccount);
     smtp.addRecipient(emailAlertAddress);
     smtp.setPriority("High");
-    smtp.setSubject((String) deviceName + " Motion Detected " + path);
+    smtp.setSubject((String) config.deviceName + " Motion Detected " + path);
     smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
     if (path != "") {
@@ -287,12 +287,11 @@ void registerCameraServer() {
                         config.captureFramesize = kv.value().as<int>();
                     } else if (key == "streamFramesize") {
                         config.streamFramesize = kv.value().as<int>();
-                        config.streamQueue = setStreamQueue();
                     }
                 }
             }
 
-            configSave();
+            configManager.save();
 
             request->send(200);
     });

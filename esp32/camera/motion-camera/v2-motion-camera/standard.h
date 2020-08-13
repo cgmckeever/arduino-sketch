@@ -2,8 +2,6 @@
 #include <tuple>
 #include <iostream>
 
-extern char* deviceName;
-
 /* == Timer ==*/
 #include <arduino-timer.h>
 Timer<1, millis, void *> timer;
@@ -42,12 +40,13 @@ void loggerln(T msg);
 void bootNotify() {
     if (!wifiConnected) return;
 
+    Serial.println("Sending Boot Notification");
     SMTPData smtp;
     smtp.setLogin(smtpServer, smtpServerPort, emailSenderAccount, emailSenderPassword);
     smtp.setSender("ESP32", emailSenderAccount);
     smtp.addRecipient(emailAlertAddress);
     smtp.setPriority("High");
-    smtp.setSubject("Device Boot: " + (String) deviceName);
+    smtp.setSubject("Device Boot: " + (String) config.deviceName);
     smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
     if (MailClient.sendMail(smtp)) {

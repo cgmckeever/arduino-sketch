@@ -21,14 +21,13 @@ struct Config {
     char deviceName[DEVICENAMELEN];
     char apPassword[APPASSLEN];
     int captureFramesize;
-    int streamFramesize;
-    int streamQueue;
-    int streamWait;
     bool disableCameraMotion;
     bool sendAlerts;
 
+    int streamFramesize;
     int streamQueueMax;
-    int streamSizeThreshold;
+    int streamSizeQueued;
+    int streamWaitMin;
 
     int camera_xclk_freq_hz;
     int camera_exposure;
@@ -40,36 +39,33 @@ struct Config {
     // BOOT TS?
 } config;
 
-void configSave() {
-  deviceName = config.deviceName;
-  configManager.save();
-}
-
 bool stringEmpty(char* checkString) {
   char firstChar = checkString[0];
   return (firstChar == '\0' || checkString == NULL || firstChar == '\xFF');
 }
 
 int setStreamQueue() {
-  return config.streamFramesize > config.streamSizeThreshold ? 1 : config.streamQueueMax;
+  return config.streamFramesize > config.streamSizeQueued ? 1 : config.streamQueueMax;
+}
+
+int setStreamWait() {
+  return config.streamFramesize > config.streamSizeQueued ? 1000 : config.streamWaitMin;
 }
 
 void configDefaults() {
   Serial.println("config defaults set");
 
-  strncpy(config.deviceName, deviceName, DEVICENAMELEN);
+  strncpy(config.deviceName, "Spy-Cam-v2", DEVICENAMELEN);
   strncpy(config.apPassword, "1234567890", APPASSLEN);
 
   config.captureFramesize = 9;
-  config.streamFramesize = 3;
-
   config.disableCameraMotion = true;
   config.sendAlerts = true;
 
+  config.streamFramesize = 3;
+  config.streamSizeQueued = 3;
   config.streamQueueMax = 2;
-  config.streamSizeThreshold = 3;
-  config.streamWait = 500;
-  config.streamQueue = setStreamQueue();
+  config.streamWaitMin = 200;
 
   config.camera_xclk_freq_hz = 20000000;
   config.camera_exposure = 600;
@@ -79,20 +75,19 @@ void configDefaults() {
   config.camera_lenc = 0;
   config.camera_raw_gma = 0;
 
-  configSave();
+  configManager.save();
 }
 
 void configSetup() {
     configManager.addParameter("deviceName", config.deviceName, DEVICENAMELEN);
     configManager.addParameter("captureFramesize", &config.captureFramesize);
-    configManager.addParameter("streamFramesize", &config.streamFramesize);
-    configManager.addParameter("streamQueue", &config.streamQueue);
-    configManager.addParameter("streamWait", &config.streamWait);
     configManager.addParameter("disableDeviceMotion", &config.disableCameraMotion);
     configManager.addParameter("sendAlerts", &config.sendAlerts);
 
+    configManager.addParameter("streamFramesize", &config.streamFramesize);
     configManager.addParameter("streamQueueMax", &config.streamQueueMax);
-    configManager.addParameter("streamSizeThreshold", &config.streamSizeThreshold);
+    configManager.addParameter("streamSizeQueued", &config.streamSizeQueued);
+    configManager.addParameter("streamWaitMin", &config.streamWaitMin);
 
     // Camera Settings
     configManager.addParameter("cameraFreq", &config.camera_xclk_freq_hz);
@@ -105,9 +100,9 @@ void configSetup() {
 
     configManager.setInitCallback(configDefaults);
     configManager.setAPCallback(APCallback);
-    configManager.setAPFilename("wifiConfig.html");
+    configManager.setAPFilename("/wifiConfig.html");
 
-    configManager.setAPName(deviceName);
+    configManager.setAPName("Spy-Cam-v2");
 
     //disable brownout detector
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
