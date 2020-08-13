@@ -47,7 +47,7 @@ void setup(void) {
     if (wifiConnected) {
         timeClient.begin();
         setTime();
-        //bootNotify();
+        if (config.sendAlerts) bootNotify();
 
         configManager.stopWebserver();
         registerCameraServer();
@@ -192,9 +192,11 @@ camera_fb_t* captureSend(uint8_t*& jpgBuf, size_t& jpgLen) {
 
     String path = saveBuffer(jpgBuf, jpgLen, "jpg");
 
-    argsSend *args = new argsSend();
-    args->path = path;
-    sendTimer.in(500, captureCallback, args);
+    if (config.sendAlerts) {
+        argsSend *args = new argsSend();
+        args->path = path;
+        sendTimer.in(500, captureCallback, args);
+    }
 
     return fb;
 }
@@ -286,8 +288,9 @@ void registerCameraServer() {
                         config.streamFramesize = kv.value().as<int>();
                     }
                 }
-                configSave();
             }
+
+            configSave();
 
             request->send(200);
     });

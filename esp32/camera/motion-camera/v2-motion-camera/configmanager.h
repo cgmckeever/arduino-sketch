@@ -23,7 +23,13 @@ struct Config {
     int streamFramesize;
     int streamQueue;
     bool disableCameraMotion;
+    bool sendAlerts;
+
     int camera_xclk_freq_hz;
+    int camera_exposure;
+    int camera_exposure_control;
+    int camera_hmirror;
+    int camera_vflip;
     // BOOT TS?
 } config;
 
@@ -47,7 +53,13 @@ void configDefaults() {
   config.streamFramesize = 5;
   config.streamQueue = 2;
   config.disableCameraMotion = true;
+  config.sendAlerts = true;
+
   config.camera_xclk_freq_hz = 20000000;
+  config.camera_exposure = 800;
+  config.camera_exposure_control = 0;
+  config.camera_hmirror = 0;
+  config.camera_vflip = 0;
 
   configSave();
 }
@@ -58,9 +70,14 @@ void configSetup() {
     configManager.addParameter("streamFramesize", &config.streamFramesize);
     configManager.addParameter("streamQueue", &config.streamQueue);
     configManager.addParameter("disableDeviceMotion", &config.disableCameraMotion);
+    configManager.addParameter("sendAlerts", &config.sendAlerts);
 
     // Camera Settings
     configManager.addParameter("cameraFreq", &config.camera_xclk_freq_hz);
+    configManager.addParameter("cameraExposure", &config.camera_exposure);
+    configManager.addParameter("cameraExposureControl", &config.camera_exposure_control);
+    configManager.addParameter("cameraHmirror", &config.camera_hmirror);
+    configManager.addParameter("cameraVflip", &config.camera_vflip);
 
     configManager.setInitCallback(configDefaults);
     configManager.setAPCallback(APCallback);

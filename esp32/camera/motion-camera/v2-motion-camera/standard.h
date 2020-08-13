@@ -131,8 +131,8 @@ void initHTTP(int port=80) {
         request->send(200, "text/plain", "Configs Cleared");
     });
 
-    webServer.on("/default", HTTP_GET, [](AsyncWebServerRequest *request) {
-        loggerln("/default");
+    webServer.on("/reconfig", HTTP_GET, [](AsyncWebServerRequest *request) {
+        loggerln("/reconfig");
         configDefaults();
         timer.in(2000, rebootCallback);
         request->send(200, "text/plain", "Configs Set to Defaults");

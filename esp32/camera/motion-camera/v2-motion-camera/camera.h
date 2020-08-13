@@ -36,6 +36,7 @@ bool initCamera() {
     //cameraConfig.xclk_freq_hz = 20000000;
     //cameraConfig.xclk_freq_hz = 5000000;
     cameraConfig.xclk_freq_hz = config.camera_xclk_freq_hz;
+
     cameraConfig.jpeg_quality = 10;
     cameraConfig.fb_count = 1;
 
@@ -43,6 +44,11 @@ bool initCamera() {
     cameraConfig.pixel_format = PIXFORMAT_JPEG;
 
     cameraOK = esp_camera_init(&cameraConfig) == ESP_OK;
+
+    sensor_t *s = esp_camera_sensor_get();
+    s->set_aec_value(s, config.camera_exposure);
+    s->set_exposure_ctrl(s, config.camera_exposure_control);
+
     *cameraMode = isReady;
     *cameraInUse = false;
     return cameraOK;
@@ -95,8 +101,10 @@ void updateParam(String param, int value) {
         s->set_framesize(s, (framesize_t) value);
     } else if (param ==  "hmirror") {
         s->set_hmirror(s, value);
+        config.camera_hmirror = value;
     } else if (param == "vflip") {
         s->set_vflip(s, value);
+        config.camera_vflip = value;
     } else if (param == "quality") {
         s->set_quality(s, value);
     } else if (param == "contrast") {
@@ -115,12 +123,17 @@ void updateParam(String param, int value) {
         s->set_gain_ctrl(s, value);
     } else if (param == "aec") {
         s->set_exposure_ctrl(s, value);
+        config.camera_exposure_control = value;
+        if (value == 0) s->set_aec_value(s, config.camera_exposure);
     } else if (param == "awb_gain") {
         s->set_awb_gain(s, value);
     } else if (param == "agc_gain") {
         s->set_agc_gain(s, value);
     } else if (param == "aec_value") {
+        s->set_exposure_ctrl(s, 0);
+        config.camera_exposure_control = 0;
         s->set_aec_value(s, value);
+        config.camera_exposure = value;
     } else if (param == "aec2") {
        s->set_aec2(s, value);
     } else if (param == "dcw") {
