@@ -13,6 +13,7 @@ void APCallback(WebServer *server);
 const char *stylesCSS = (char *) "/styles-ap.css";
 const char *mainJS = (char *) "/main-ap.js";
 
+char *deviceName = "Spy-Cam-v2";
 const int DEVICENAMELEN = 28;
 const int APPASSLEN = 15;
 
@@ -25,6 +26,9 @@ struct Config {
     int streamWait;
     bool disableCameraMotion;
     bool sendAlerts;
+
+    int streamQueueMax;
+    int streamSizeThreshold;
 
     int camera_xclk_freq_hz;
     int camera_exposure;
@@ -46,18 +50,26 @@ bool stringEmpty(char* checkString) {
   return (firstChar == '\0' || checkString == NULL || firstChar == '\xFF');
 }
 
-void configDefaults() {
-  Serial.println("defaults");
+int setStreamQueue() {
+  return config.streamFramesize > config.streamSizeThreshold ? 1 : config.streamQueueMax;
+}
 
-  strncpy(config.deviceName, "SpyCam-v2", DEVICENAMELEN);
+void configDefaults() {
+  Serial.println("config defaults set");
+
+  strncpy(config.deviceName, deviceName, DEVICENAMELEN);
   strncpy(config.apPassword, "1234567890", APPASSLEN);
 
   config.captureFramesize = 9;
-  config.streamFramesize = 5;
-  config.streamQueue = maxStreamQueue;
-  config.streamWait = 500;
+  config.streamFramesize = 3;
+
   config.disableCameraMotion = true;
   config.sendAlerts = true;
+
+  config.streamQueueMax = 2;
+  config.streamSizeThreshold = 3;
+  config.streamWait = 500;
+  config.streamQueue = setStreamQueue();
 
   config.camera_xclk_freq_hz = 20000000;
   config.camera_exposure = 600;
@@ -78,6 +90,9 @@ void configSetup() {
     configManager.addParameter("streamWait", &config.streamWait);
     configManager.addParameter("disableDeviceMotion", &config.disableCameraMotion);
     configManager.addParameter("sendAlerts", &config.sendAlerts);
+
+    configManager.addParameter("streamQueueMax", &config.streamQueueMax);
+    configManager.addParameter("streamSizeThreshold", &config.streamSizeThreshold);
 
     // Camera Settings
     configManager.addParameter("cameraFreq", &config.camera_xclk_freq_hz);

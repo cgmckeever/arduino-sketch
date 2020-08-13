@@ -1,8 +1,4 @@
-int streamWait;
-int maxStreamQueue = 2;
-
 #include "standard.h"
-char *deviceName = "FruitLoops";
 
 /* == web/sockets ==*/
 // https://github.com/me-no-dev/ESPAsyncWebServer
@@ -29,6 +25,8 @@ int alertsSent = 0;
 String saveFile(unsigned char*, unsigned int, String);
 camera_fb_t* captureSend(uint8_t*&, size_t&);
 void registerCameraServer(int);
+
+int streamWait;
 
 struct argsSend {
     String path;
@@ -289,7 +287,7 @@ void registerCameraServer() {
                         config.captureFramesize = kv.value().as<int>();
                     } else if (key == "streamFramesize") {
                         config.streamFramesize = kv.value().as<int>();
-                        config.streamQueue = config.streamFramesize > 4 ? 1 : maxStreamQueue;
+                        config.streamQueue = setStreamQueue();
                     }
                 }
             }
