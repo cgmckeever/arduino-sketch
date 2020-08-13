@@ -49,16 +49,15 @@ void setup(void) {
         setTime();
         //bootNotify();
 
-        // This will render AP settings impossible
         configManager.stopWebserver();
         registerCameraServer();
         initHTTP(80);
+
+        motionTimer.every(500, timedMotion);
     }
 
     initCamera();
     flash(false);
-
-    motionTimer.every(500, timedMotion);
 }
 
 

@@ -32,17 +32,15 @@ bool stringEmpty(char* checkString) {
 }
 
 void configDefaults() {
-  if (stringEmpty(config.deviceName)) {
-    strncpy(config.deviceName, "Spy-Cam", DEVICENAMELEN);
-  }
+  Serial.println("defaults");
 
-  if (stringEmpty(config.apPassword)) {
-    strncpy(config.apPassword, "1234567890", APPASSLEN);
-  }
+  strncpy(config.deviceName, "SpyCam-v2", DEVICENAMELEN);
+  strncpy(config.apPassword, "1234567890", APPASSLEN);
 
-  if (config.captureFramesize < 1) config.captureFramesize = 9;
-  if (config.streamFramesize < 1 || config.streamFramesize > 6) config.streamFramesize = 5;
-  if (config.streamQueue < 1) config.streamQueue = 2;
+  config.captureFramesize = 9;
+  config.streamFramesize = 5;
+  config.streamQueue = 2;
+  config.disableCameraMotion = true;
 
   configSave();
 }
@@ -54,19 +52,20 @@ void configSetup() {
     configManager.addParameter("streamQueue", &config.streamQueue);
     configManager.addParameter("disableDeviceMotion", &config.disableCameraMotion);
 
+    configManager.setInitCallback(configDefaults);
     configManager.setAPCallback(APCallback);
-    configManager.setAPFilename("index.ap.html");
+    configManager.setAPFilename("/wifiConfig.html");
 
     configManager.setAPName(deviceName);
 
     //disable brownout detector
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     configManager.begin(config);
-    configDefaults();
     wifiConnected = configManager.getMode() == station;
     //enable brownout detector
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 1);
 
+    //configDefaults();
 }
 
 IPAddress deviceIP() {
@@ -74,13 +73,15 @@ IPAddress deviceIP() {
 }
 
 void serveAssets(WebServer *server) {
-  server->on("/styles.ap.css", HTTPMethod::HTTP_GET, [server](){
+  server->on("/styles-ap.css", HTTPMethod::HTTP_GET, [server]() {
     configManager.streamFile(stylesCSS, mimeCSS);
   });
 
-  server->on("/main.ap.js", HTTPMethod::HTTP_GET, [server](){
+  server->on("/main-ap.js", HTTPMethod::HTTP_GET, [server]() {
     configManager.streamFile(mainJS, mimeJS);
   });
+
+  Serial.println("Assets Registered");
 }
 
 void APCallback(WebServer *server) {

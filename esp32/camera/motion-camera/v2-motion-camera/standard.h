@@ -4,6 +4,10 @@
 
 extern char* deviceName;
 
+/* == Timer ==*/
+#include <arduino-timer.h>
+Timer<1, millis, void *> timer;
+
 /* == SD ==*/
 //#include "SD_MMC.h"
 #include "SD.h"
@@ -14,8 +18,8 @@ bool sdEnabled = false;
 
 //const char *settingsHTML = (char *)"/settings.html";
 //const char *resetHTML = (char *)"/reset.html";
-const char *stylesCSS = (char *)"/styles.css";
-const char *mainJS = (char *)"/main.js";
+const char *stylesCSS = (char *)"/styles-ap.css";
+const char *mainJS = (char *)"/main-ap.js";
 
 /* == ConfigManager ==*/
 #include "configmanager.h"
@@ -27,15 +31,12 @@ const char *mainJS = (char *)"/main.js";
 extern AsyncWebServer webServer;
 AsyncWebSocket logSocket("/log");
 
+
 /* == NTP ==*/
 #include <NTPClient.h>
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 time_t bootTime = 0;
-
-/* == Timer ==*/
-#include <arduino-timer.h>
-Timer<1, millis, void *> timer;
 
 void socketLogger(String msg);
 template<typename T>
@@ -126,6 +127,13 @@ void initHTTP(int port=80) {
     webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
         timer.in(2000, rebootCallback);
         request->send(200, "text/plain", "Rebooting...");
+    });
+
+    webServer.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
+        loggerln("/reset");
+        configManager.clearAllSettings(false);
+        timer.in(2000, rebootCallback);
+        request->send(200, "text/plain", "Configs Cleared");
     });
 
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
