@@ -144,6 +144,7 @@ void updateParam(String param, int value) {
         s->set_wpc(s, value);
     } else if (param == "lenc") {
         s->set_lenc(s, value);
+        config.camera_lenc = value;
     } else if (param == "raw_gma") {
         s->set_raw_gma(s, value);
     } else if (param == "special_effect") {

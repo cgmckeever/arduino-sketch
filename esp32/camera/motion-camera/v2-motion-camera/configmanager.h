@@ -30,6 +30,7 @@ struct Config {
     int camera_exposure_control;
     int camera_hmirror;
     int camera_vflip;
+    int camera_lenc;
     // BOOT TS?
 } config;
 
@@ -60,6 +61,7 @@ void configDefaults() {
   config.camera_exposure_control = 0;
   config.camera_hmirror = 0;
   config.camera_vflip = 0;
+  config.camera_lenc = 0;
 
   configSave();
 }
@@ -78,6 +80,7 @@ void configSetup() {
     configManager.addParameter("cameraExposureControl", &config.camera_exposure_control);
     configManager.addParameter("cameraHmirror", &config.camera_hmirror);
     configManager.addParameter("cameraVflip", &config.camera_vflip);
+    configManager.addParameter("cameraLensCorrection", &config.camera_lenc);
 
     configManager.setInitCallback(configDefaults);
     configManager.setAPCallback(APCallback);
