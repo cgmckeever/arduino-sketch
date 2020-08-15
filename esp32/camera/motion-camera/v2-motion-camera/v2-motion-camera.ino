@@ -1,11 +1,5 @@
 #include "standard.h"
 
-/* == web/sockets ==*/
-// https://github.com/me-no-dev/ESPAsyncWebServer
-AsyncWebServer webServer(80);
-AsyncWebSocket streamSocket("/stream");
-int lastStreamTime = 0;
-
 // Select camera model
 //#define CAMERA_MODEL_WROVER_KIT // Has PSRAM
 //#define CAMERA_MODEL_ESP_EYE // Has PSRAM
@@ -19,6 +13,7 @@ int lastStreamTime = 0;
 #define T_Camera_JORNAL_VERSION
 
 #include "camera.h"
+#include "stream.h"
 
 /** == used for capture/chunk streaming == **/
 uint8_t* captureBuf;
@@ -43,72 +38,39 @@ struct argsSend {
     String path;
 };
 
-Timer<5, millis, argsSend*> sendTimer;
-Timer<1, millis, void*> motionTimer;
-Timer<1, millis, void*> socketTimer;
+//Timer<5, millis, argsSend*> sendTimer;
+//Timer<1, millis, void*> motionTimer;
+//Timer<1, millis, void*> socketTimer;
 
 void setup(void) {
     Serial.begin(115200);
     DEBUG_MODE = true;
     initSD();
 
-    configSetup();
+    //configSetup();
     //configDefaults();
 
     if (wifiConnected) {
         timeClient.begin();
         setTime();
-        if (config.sendAlerts) bootNotify();
+        //if (config.sendAlerts) bootNotify();
 
-        configManager.stopWebserver();
-        registerCameraServer();
-        initHTTP(80);
+        //configManager.stopWebserver();
+        //registerCameraServer();
+        //initHTTP(80);
 
-        motionTimer.every(500, timedMotion);
+        //motionTimer.every(500, timedMotion);
     }
 
-    streamWait = setStreamWait();
-    initCamera();
-    flash(false);
-}
+    //streamWait = setStreamWait();
+    //initCamera();
+    //flash(false);
 
-
-void sockets() {
-    if (streamSocket.count() > 0) {
-        disableMotion();
-        if (*cameraMode == isReady && (millis() - lastStreamTime) > streamWait) {
-            cameraControl(isStream);
-            streamWait = setStreamWait();
-
-            pixformat_t pixformat = PIXFORMAT_JPEG;
-            //pixformat_t pixformat = PIXFORMAT_GRAYSCALE;
-
-            sensor_t *sensor = esp_camera_sensor_get();
-            sensor->set_pixformat(sensor, pixformat);
-            sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
-
-            uint8_t *jpgBuf;
-            size_t jpgLen;
-            camera_fb_t *fb = capture(jpgBuf, jpgLen);
-
-            if (fb) {
-                max_ws_queued_messages = setStreamQueue();
-                streamSocket.binaryAll(jpgBuf, jpgLen);
-
-                bufferRelease(fb);
-
-                lastStreamTime = millis();
-                if (fb->format != PIXFORMAT_JPEG) free(jpgBuf);
-            }
-            cameraRelease(isStream);
-        }
-    } else if (lastStreamTime > 0) {
-        lastStreamTime = 0;
-        if (!config.disableCameraMotion) enableMotion();
-    }
+    streamSetup();
 }
 
 void loop() {
+    /*
     sendTimer.tick();
     timer.tick();
     configManager.loop();
@@ -121,6 +83,9 @@ void loop() {
     if (logSocket.count() > 0 || config.disableCameraMotion) {
         disableMotion();
     } else enableMotion();
+    */
+
+    //vTaskDelay(1000);
 }
 
 bool timedMotion(void*) {
@@ -207,7 +172,7 @@ camera_fb_t* captureSend(uint8_t*& jpgBuf, size_t& jpgLen) {
     if (config.sendAlerts) {
         argsSend *args = new argsSend();
         args->path = path;
-        sendTimer.in(500, captureCallback, args);
+        //sendTimer.in(500, captureCallback, args);
     }
 
     return fb;
@@ -246,6 +211,7 @@ int chunkBuffer(char *buffer, size_t maxLen, size_t index)
     return len;
 }
 
+/*
 void registerCameraServer() {
     webServer.addHandler(&streamSocket);
 
@@ -344,5 +310,7 @@ void registerCameraServer() {
         request->send(response);
     });
 }
+
+*/
 
 

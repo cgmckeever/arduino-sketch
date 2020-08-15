@@ -9,7 +9,7 @@ bool *cameraInUse = new bool(false);
 enum cameraModes { isReady, isStream, isCapture, isMotion };
 cameraModes *cameraMode = new cameraModes;
 
-bool initCamera() {
+camera_config_t getConfig() {
     camera_config_t cameraConfig;
 
     cameraConfig.ledc_channel = LEDC_CHANNEL_0;
@@ -31,16 +31,22 @@ bool initCamera() {
     cameraConfig.pin_pwdn = PWDN_GPIO_NUM;
     cameraConfig.pin_reset = RESET_GPIO_NUM;
 
-    //cameraConfig.xclk_freq_hz = 20000000;
+    cameraConfig.xclk_freq_hz = 20000000;
     //cameraConfig.xclk_freq_hz = 5000000;
-    cameraConfig.xclk_freq_hz = config.camera_xclk_freq_hz;
+    //cameraConfig.xclk_freq_hz = config.camera_xclk_freq_hz;
 
     cameraConfig.jpeg_quality = 10;
     cameraConfig.fb_count = 1;
 
-    cameraConfig.frame_size = FRAMESIZE_SVGA;
+    cameraConfig.frame_size = FRAMESIZE_VGA;
     cameraConfig.pixel_format = PIXFORMAT_JPEG;
 
+    return cameraConfig;
+}
+
+bool initCamera() {
+
+    camera_config_t cameraConfig = getConfig();
     cameraOK = esp_camera_init(&cameraConfig) == ESP_OK;
 
     sensor_t *s = esp_camera_sensor_get();

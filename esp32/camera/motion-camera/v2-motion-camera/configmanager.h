@@ -99,7 +99,6 @@ void configSetup() {
     configManager.addParameter("cameraRawGMA", &config.camera_raw_gma);
 
     configManager.setInitCallback(configDefaults);
-    configManager.setAPCallback(APCallback);
     configManager.setAPFilename("/wifiConfig.html");
 
     configManager.setAPName("Spy-Cam-v2");

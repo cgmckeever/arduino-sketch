@@ -5,7 +5,6 @@
 #define XCLK_GPIO_NUM    21
 #define SIOD_GPIO_NUM    26
 #define SIOC_GPIO_NUM    27
-
 #define Y9_GPIO_NUM      35
 #define Y8_GPIO_NUM      34
 #define Y7_GPIO_NUM      39
@@ -24,7 +23,6 @@
 #define XCLK_GPIO_NUM    4
 #define SIOD_GPIO_NUM    18
 #define SIOC_GPIO_NUM    23
-
 #define Y9_GPIO_NUM      36
 #define Y8_GPIO_NUM      37
 #define Y7_GPIO_NUM      38
@@ -43,7 +41,6 @@
 #define XCLK_GPIO_NUM     27
 #define SIOD_GPIO_NUM     25
 #define SIOC_GPIO_NUM     23
-
 #define Y9_GPIO_NUM       19
 #define Y8_GPIO_NUM       36
 #define Y7_GPIO_NUM       18
@@ -62,7 +59,6 @@
 #define XCLK_GPIO_NUM     27
 #define SIOD_GPIO_NUM     22
 #define SIOC_GPIO_NUM     23
-
 #define Y9_GPIO_NUM       19
 #define Y8_GPIO_NUM       36
 #define Y7_GPIO_NUM       18
@@ -81,7 +77,6 @@
 #define XCLK_GPIO_NUM     27
 #define SIOD_GPIO_NUM     22
 #define SIOC_GPIO_NUM     23
-
 #define Y9_GPIO_NUM       19
 #define Y8_GPIO_NUM       36
 #define Y7_GPIO_NUM       18
@@ -100,7 +95,6 @@
 #define XCLK_GPIO_NUM     27
 #define SIOD_GPIO_NUM     25
 #define SIOC_GPIO_NUM     23
-
 #define Y9_GPIO_NUM       19
 #define Y8_GPIO_NUM       36
 #define Y7_GPIO_NUM       18
@@ -119,7 +113,6 @@
 #define XCLK_GPIO_NUM      0
 #define SIOD_GPIO_NUM     26
 #define SIOC_GPIO_NUM     27
-
 #define Y9_GPIO_NUM       35
 #define Y8_GPIO_NUM       34
 #define Y7_GPIO_NUM       39
@@ -138,7 +131,6 @@
 #define XCLK_GPIO_NUM     27
 #define SIOD_GPIO_NUM     25
 #define SIOC_GPIO_NUM     23
-
 #define Y9_GPIO_NUM       19
 #define Y8_GPIO_NUM       36
 #define Y7_GPIO_NUM       18

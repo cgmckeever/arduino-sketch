@@ -15,13 +15,6 @@ bool sdEnabled = false;
 /* == ConfigManager ==*/
 #include "configmanager.h"
 
-/* == HTTP Server ==*/
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include "AsyncJson.h"
-extern AsyncWebServer webServer;
-AsyncWebSocket logSocket("/log");
-
 
 /* == NTP ==*/
 #include <NTPClient.h>
@@ -115,6 +108,7 @@ bool rebootCallback(void *) {
     return false;
 }
 
+/*
 void initHTTP(int port=80) {
     webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
         timer.in(2000, rebootCallback);
@@ -150,13 +144,8 @@ void initHTTP(int port=80) {
 
     SPIFFS.begin();
 }
+*/
 
-void socketLogger(String msg) {
-    if(logSocket.count() > 0) {
-        max_ws_queued_messages = 8;
-        logSocket.textAll(msg);
-    }
-}
 
 template<typename T>
 void logger(T msg, bool newline) {
@@ -164,7 +153,6 @@ void logger(T msg, bool newline) {
     DEBUG_MODE = true;
     DebugPrint(msg);
     if (newline) DebugPrintln(F(""));
-    socketLogger((String) msg);
     Serial.flush();
     DEBUG_MODE = debug;
 }
