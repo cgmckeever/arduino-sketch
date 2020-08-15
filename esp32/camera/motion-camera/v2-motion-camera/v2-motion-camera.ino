@@ -45,7 +45,7 @@ struct argsSend {
 void setup(void) {
     Serial.begin(115200);
     DEBUG_MODE = true;
-    initSD();
+    //initSD();
 
     //configSetup();
     //configDefaults();
@@ -85,7 +85,7 @@ void loop() {
     } else enableMotion();
     */
 
-    //vTaskDelay(1000);
+    vTaskDelay(1000);
 }
 
 bool timedMotion(void*) {

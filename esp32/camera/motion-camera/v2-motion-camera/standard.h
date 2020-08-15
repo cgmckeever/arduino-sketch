@@ -1,8 +1,8 @@
 #include "constants.h"
 
 /* == Timer ==*/
-#include <arduino-timer.h>
-Timer<1, millis, void *> timer;
+//#include <arduino-timer.h>
+//Timer<1, millis, void *> timer;
 
 /* == SD ==*/
 //#include "SD_MMC.h"
@@ -22,7 +22,6 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 time_t bootTime = 0;
 
-void socketLogger(String msg);
 template<typename T>
 void logger(T msg, bool newline = false);
 template<typename T>

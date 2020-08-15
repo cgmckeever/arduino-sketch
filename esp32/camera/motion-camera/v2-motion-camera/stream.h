@@ -63,18 +63,18 @@ QueueHandle_t streamingClients;
 
 // ======== Server Connection Handler Task ==========================
 void mjpegCB(void* pvParameters) {
-  TickType_t xLastWakeTime;
-  const TickType_t xFrequency = pdMS_TO_TICKS(WSINTERVAL);
+  //TickType_t xLastWakeTime;
+  //const TickType_t xFrequency = pdMS_TO_TICKS(WSINTERVAL);
 
   // Creating frame synchronization semaphore and initializing it
-  frameSync = xSemaphoreCreateBinary();
-  xSemaphoreGive( frameSync );
+  //frameSync = xSemaphoreCreateBinary();
+  //xSemaphoreGive( frameSync );
 
   // Creating a queue to track all connected clients
-  streamingClients = xQueueCreate( 10, sizeof(WiFiClient*) );
+  //streamingClients = xQueueCreate( 10, sizeof(WiFiClient*) );
 
   //=== setup section  ==================
-
+/*
   //  Creating RTOS task for grabbing frames from the camera
   xTaskCreatePinnedToCore(
     camCB,        // callback
@@ -94,7 +94,7 @@ void mjpegCB(void* pvParameters) {
     2,
     &tStream,
     APP_CPU);
-
+*/
   //  Registering webserver handling routines
   server.on("/mjpeg/1", HTTP_GET, handleJPGSstream);
   server.on("/jpg", HTTP_GET, handleJPG);
@@ -102,13 +102,14 @@ void mjpegCB(void* pvParameters) {
   server.begin();
 
   //=== loop() section  ===================
-  xLastWakeTime = xTaskGetTickCount();
+  //xLastWakeTime = xTaskGetTickCount();
+
   for (;;) {
     server.handleClient();
 
     //  After every server client handling request, we let other tasks run and then pause
-    taskYIELD();
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    //taskYIELD();
+    //vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
 
