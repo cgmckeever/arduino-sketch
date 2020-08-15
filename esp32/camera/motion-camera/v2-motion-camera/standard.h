@@ -1,6 +1,4 @@
 #include "constants.h"
-#include <tuple>
-#include <iostream>
 
 /* == Timer ==*/
 #include <arduino-timer.h>
