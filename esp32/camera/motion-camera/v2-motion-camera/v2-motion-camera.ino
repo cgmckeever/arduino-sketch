@@ -20,13 +20,16 @@ uint8_t* captureBuf;
 size_t captureLen;
 camera_fb_t *captureFB;
 
-/* == motion.h ==*/
+
+/* == motion.h == */
+/*
 #define MOTION_DEBUG false
 #define motionTriggerLevel 2
 time_t lastMotionAlertAt = 0;
 int resetTriggers = 0;
 int alertsSent = 0;
 #include "motion.h"
+*/
 
 String saveFile(unsigned char*, unsigned int, String);
 camera_fb_t* captureSend(uint8_t*&, size_t&);
@@ -47,7 +50,7 @@ void setup(void) {
     DEBUG_MODE = true;
     //initSD();
 
-    //configSetup();
+    configSetup();
     //configDefaults();
 
     if (wifiConnected) {
@@ -66,14 +69,18 @@ void setup(void) {
     //initCamera();
     //flash(false);
 
+    configManager.stopWebserver();
     streamSetup();
 }
 
 void loop() {
+
+    configManager.loop();
+
     /*
     sendTimer.tick();
     timer.tick();
-    configManager.loop();
+
 
     motionTimer.tick();
     //motionLoop();
@@ -88,6 +95,7 @@ void loop() {
     vTaskDelay(1000);
 }
 
+/*
 bool timedMotion(void*) {
     if (*cameraMode == isReady && !motionDisabled && !config.disableCameraMotion) {
         cameraControl(isMotion);
@@ -110,6 +118,7 @@ bool timedMotion(void*) {
 
     return true;
 }
+*/
 
 void send(String path="") {
     if (!wifiConnected) return;
@@ -135,7 +144,7 @@ void send(String path="") {
     } else loggerln("Error sending Email, " + MailClient.smtpErrorReason());
 
     smtp.empty();
-    alertsSent += 1;
+    //alertsSent += 1;
 }
 
 bool captureCallback(argsSend *args) {
