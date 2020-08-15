@@ -38,12 +38,12 @@ void print_state(uint16_t, uint16_t, bool);
 
 
 bool motionLoop() {
-    bool motionDetected = false; 
+    bool motionDetected = false;
 
     if (!motionDisabled) {
         isDetecting = true;
         if (!capture_still()) {
-            Serial.println("Failed motion capture");
+            loggerln("Failed motion capture");
         } else {
             motionDetected = motion_detect();
             update_frame();
@@ -59,14 +59,16 @@ void motionSettings() {
         sensor_t * sensor = esp_camera_sensor_get();
         sensor->set_pixformat(sensor, PIXFORMAT_GRAYSCALE);
         sensor->set_framesize(sensor, MOTION_FRAME);
-        Serial.println("Motion Settings Enabled");
+        loggerln("Motion Settings Enabled");
     }
 }
 
 void enableMotion(int level=0) {
-    motionTriggers = level;
-    motionDisabled = false;
-    motionSettings();
+    if (motionDisabled) {
+        motionTriggers = level;
+        motionDisabled = false;
+        motionSettings();
+    }
 }
 
 void disableMotion() {
@@ -76,38 +78,40 @@ void disableMotion() {
 bool capture_still() {
     motionSettings();
 
-    camera_fb_t *frame_buffer = esp_camera_fb_get();
-    esp_camera_fb_return(frame_buffer);
-    if (!frame_buffer) return false;
+    camera_fb_t *fb = esp_camera_fb_get();
 
-    current_frame[H][W] = { 0 };
-    uint32_t totalPixelTemp = 0;
+    if (!fb) return false;
 
-    // down-sample image in blocks
-    for (uint32_t i = 0; i < WIDTH * HEIGHT; i++) {
-        const uint16_t x = i % WIDTH;
-        const uint16_t y = floor(i / WIDTH);
-        const uint8_t block_x = floor(x / BLOCK_SIZE);
-        const uint8_t block_y = floor(y / BLOCK_SIZE);
-        const uint8_t pixel = frame_buffer->buf[i];
-        const uint16_t current = current_frame[block_y][block_x];
+    if (fb) {
+        current_frame[H][W] = { 0 };
+        uint32_t totalPixelTemp = 0;
+        // down-sample image in blocks
+        for (uint32_t i = 0; i < WIDTH * HEIGHT; i++) {
+            const uint16_t x = i % WIDTH;
+            const uint16_t y = floor(i / WIDTH);
+            const uint8_t block_x = floor(x / BLOCK_SIZE);
+            const uint8_t block_y = floor(y / BLOCK_SIZE);
+            const uint8_t pixel = fb->buf[i];
+            const uint16_t current = current_frame[block_y][block_x];
 
-        // average pixels in block (accumulate)
-        current_frame[block_y][block_x] += pixel;
-        totalPixelTemp += pixel;
-    }
+            // average pixels in block (accumulate)
+            current_frame[block_y][block_x] += pixel;
+            totalPixelTemp += pixel;
+        }
+        esp_camera_fb_return(fb);
 
-    averagePixelTemp = totalPixelTemp / (WIDTH * HEIGHT); 
+        averagePixelTemp = totalPixelTemp / (WIDTH * HEIGHT);
 
-    // average pixels in block (rescale)
-    for (int y = 0; y < H; y++)
-        for (int x = 0; x < W; x++)
-            current_frame[y][x] /= BLOCK_SIZE * BLOCK_SIZE;
+        // average pixels in block (rescale)
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+                current_frame[y][x] /= BLOCK_SIZE * BLOCK_SIZE;
 
 #if MOTION_DEBUG
-    Serial.println("Current frame:");
-    print_frame(current_frame);
+        loggerln("Current frame:");
+        print_frame(current_frame);
 #endif
+    } else return false;
     return true;
 }
 
@@ -125,10 +129,10 @@ bool motion_detect() {
                 changes += 1;
 
                 if (MOTION_DEBUG) {
-                    Serial.print("diff\t");
-                    Serial.print(y);
-                    Serial.print('\t');
-                    Serial.println(x);
+                    logger("diff\t");
+                    logger(y);
+                    logger('\t');
+                    loggerln(x);
                 }
             }
         }
@@ -165,13 +169,13 @@ void print_state(uint16_t changes, uint16_t blocks, bool motionDetected) {
         triggers = "Triggered " + (String)motionTriggers;
     }
 
-    Serial.print("========== ");
-    Serial.print(label);
-    Serial.print(changes);
-    Serial.print(" out of ");
-    Serial.print(blocks);
-    Serial.print(" Blocks Changes ========== ");
-    Serial.println(triggers);
+    logger("========== ");
+    logger(label);
+    logger(changes);
+    logger(" out of ");
+    logger(blocks);
+    logger(" Blocks Changes ========== ");
+    loggerln(triggers);
 }
 
 /**
@@ -181,10 +185,10 @@ void print_state(uint16_t changes, uint16_t blocks, bool motionDetected) {
 void print_frame(uint16_t frame[H][W]) {
     for (int y = 0; y < H; y++) {
         for (int x = 0; x < W; x++) {
-            Serial.print(frame[y][x]);
-            Serial.print('\t');
+            logger(frame[y][x]);
+            logger('\t');
         }
 
-        Serial.println();
+        loggerln("");
     }
 }
