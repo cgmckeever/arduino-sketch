@@ -3,8 +3,6 @@
 
 #include "fd_forward.h"
 
-void getSettings();
-
 bool cameraOK = false;
 bool *cameraInUse = new bool(false);
 
@@ -40,7 +38,7 @@ bool initCamera() {
     cameraConfig.jpeg_quality = 10;
     cameraConfig.fb_count = 1;
 
-    cameraConfig.frame_size = FRAMESIZE_UXGA;
+    cameraConfig.frame_size = FRAMESIZE_SVGA;
     cameraConfig.pixel_format = PIXFORMAT_JPEG;
 
     cameraOK = esp_camera_init(&cameraConfig) == ESP_OK;

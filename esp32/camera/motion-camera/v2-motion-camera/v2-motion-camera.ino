@@ -6,7 +6,15 @@ AsyncWebServer webServer(80);
 AsyncWebSocket streamSocket("/stream");
 int lastStreamTime = 0;
 
-#define CAMERA_MODEL_AI_THINKER
+// Select camera model
+//#define CAMERA_MODEL_WROVER_KIT // Has PSRAM
+//#define CAMERA_MODEL_ESP_EYE // Has PSRAM
+//#define CAMERA_MODEL_M5STACK_PSRAM // Has PSRAM
+#define CAMERA_MODEL_M5STACK_V2_PSRAM // M5Camera version B Has PSRAM
+//#define CAMERA_MODEL_M5STACK_WIDE // Has PSRAM
+//#define CAMERA_MODEL_M5STACK_ESP32CAM // No PSRAM
+//#define CAMERA_MODEL_AI_THINKER // Has PSRAM
+//#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
 #include "camera.h"
 
 /** == used for capture/chunk streaming == **/
