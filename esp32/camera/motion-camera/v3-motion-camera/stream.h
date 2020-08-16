@@ -5,14 +5,15 @@ https://github.com/arkhipenko/esp32-cam-mjpeg-multiclient
 **/
 
 // We will try to achieve 25 FPS frame rate
-const int FPS = 14;
+//const int FPS = 14;
+const int TICKRATE = 75;
 
 // We will handle web client requests every 50 ms (20 Hz)
-const int WSINTERVAL = 100;
+const int WSINTERVAL = 5000;
 
-// Commonly used variables:
-volatile size_t camSize;    // size of the current frame, byte
-volatile char* camBuf;      // pointer to the current frame
+// current buffer and size
+volatile char* camBuf;
+volatile size_t camSize;
 
 // ESP32 has two cores:
 #define cpu0 0
@@ -77,7 +78,7 @@ void capture(void* pvParameters) {
   TickType_t xLastWakeTime;
 
   //  A running interval associated with currently desired frame rate
-  const TickType_t xFrequency = pdMS_TO_TICKS(1000 / FPS);
+  const TickType_t xFrequency = pdMS_TO_TICKS(TICKRATE);
 
   // Mutex for the critical section of swithing the active frames around
   portMUX_TYPE xSemaphore = portMUX_INITIALIZER_UNLOCKED;
@@ -88,7 +89,6 @@ void capture(void* pvParameters) {
   size_t fSize[2] = { 0, 0 };
   int ifb = 0;
 
-  //=== loop() section  ===================
   xLastWakeTime = xTaskGetTickCount();
 
   for (;;) {
@@ -135,9 +135,8 @@ void capture(void* pvParameters) {
 
     // If streaming task has suspended itself (no active clients to stream to)
     // there is no need to grab frames from the camera. We can save some juice
-    // by suspedning the tasks
-    // passing NULL means "suspend yourself"
-    if ( eTaskGetState( taskStream ) == eSuspended ) vTaskSuspend(NULL);
+    // by suspedning the tasks passing NULL means "suspend yourself"
+    if (eTaskGetState(taskStream) == eSuspended) vTaskSuspend(NULL);
   }
 }
 
@@ -214,37 +213,25 @@ void stream(void * pvParameters) {
 
   //  Wait until the first frame is captured and there is something to send
   //  to clients
-  ulTaskNotifyTake( pdTRUE,          /* Clear the notification value before exiting. */
-                    portMAX_DELAY ); /* Block indefinitely. */
+  ulTaskNotifyTake(pdTRUE,          /* Clear the notification value before exiting. */
+                    portMAX_DELAY); /* Block indefinitely. */
 
   xLastWakeTime = xTaskGetTickCount();
   for (;;) {
-    // Default assumption we are running according to the FPS
-    xFrequency = pdMS_TO_TICKS(1000 / FPS);
-
     //  Only bother to send anything if there is someone watching
     UBaseType_t activeClients = uxQueueMessagesWaiting(streamingClients);
-    if ( activeClients ) {
-      // Adjust the period to the number of connected clients
-      xFrequency /= activeClients;
-
-      //  Since we are sending the same frame to everyone,
+    if (activeClients) {
       //  pop a client from the the front of the queue
       WiFiClient *client;
-      xQueueReceive (streamingClients, (void*) &client, 0);
-
-      //  Check if this client is still connected.
+      xQueueReceive(streamingClients, (void*) &client, 0);
 
       if (!client->connected()) {
         //  delete this client reference if disconnected
-        //  and don't put it back on the queue anymore. Bye!
         delete client;
       } else {
-
-        //  Ok. This is an actively connected client.
-        //  Let's grab a semaphore to prevent frame changes while we
-        //  are serving this frame
-        xSemaphoreTake( frameSync, portMAX_DELAY );
+        // Grab a semaphore to prevent frame changes
+        // while we are serving this frame
+        xSemaphoreTake(frameSync, portMAX_DELAY);
 
         client->write(CTNTTYPE, cntLen);
         sprintf(buf, "%d\r\n\r\n", camSize);
@@ -252,22 +239,23 @@ void stream(void * pvParameters) {
         client->write((char*) camBuf, (size_t)camSize);
         client->write(BOUNDARY, bdrLen);
 
-        // Since this client is still connected, push it to the end
-        // of the queue for further processing
+        // Push client to back of queue
         xQueueSend(streamingClients, (void *) &client, 0);
 
         //  The frame has been served. Release the semaphore and let other tasks run.
         //  If there is a frame switch ready, it will happen now in between frames
-        xSemaphoreGive( frameSync );
+        xSemaphoreGive(frameSync);
         taskYIELD();
       }
     } else {
-      // Since there are no connected clients,
-      // there is no reason to waste battery running
+      // Suspend till clients
       vTaskSuspend(NULL);
     }
-    //  Let other tasks run after serving every client
+    //  Let other tasks run (reduced freq per client)
     taskYIELD();
+
+    xFrequency = pdMS_TO_TICKS(TICKRATE);
+    if (activeClients) xFrequency /= (activeClients + 1);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }

@@ -68,6 +68,7 @@ void loop() {
 
     */
 
+    // delay the main loop
     vTaskDelay(1000);
 }
 
