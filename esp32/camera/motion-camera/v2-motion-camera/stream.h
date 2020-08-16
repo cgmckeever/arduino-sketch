@@ -39,13 +39,14 @@ volatile char* camBuf;      // pointer to the current frame
 #include <WiFiClient.h>
 
 OV2640 cam;
-WebServer server;
 
 void camCB(void* pvParameters);
 void streamCB(void * pvParameters);
 void handleJPGSstream(void);
 void handleJPG(void);
 char* allocateMemory(char* aPtr, size_t aSize);
+
+WebServer *configServer;
 
 
 // ===== rtos task handles =========================
@@ -96,16 +97,13 @@ void mjpegCB(void* pvParameters) {
     APP_CPU);
 
   //  Registering webserver handling routines
-  server.on("/mjpeg/1", HTTP_GET, handleJPGSstream);
-  server.on("/jpg", HTTP_GET, handleJPG);
 
-  server.begin(80);
 
   //=== loop() section  ===================
   xLastWakeTime = xTaskGetTickCount();
 
   for (;;) {
-    server.handleClient();
+    configManager.loop();
 
     //  After every server client handling request, we let other tasks run and then pause
     taskYIELD();
@@ -225,7 +223,7 @@ void handleJPGSstream(void) {
 
   //  Create a new WiFi Client object to keep track of this one
   WiFiClient* client = new WiFiClient();
-  *client = server.client();
+  *client = configServer->client();
 
   //  Immediately send this client a header
   client->write(HEADER, hdrLen);
@@ -310,14 +308,20 @@ void streamCB(void * pvParameters) {
 
 // ==== Serve up one JPEG frame =============================================
 void handleJPG(void) {
-  WiFiClient client = server.client();
+  WiFiClient client = configServer->client();
 
   if (!client.connected()) return;
   cam.run();
   client.write(JHEADER, jhdLen);
-  client.write((char*)cam.getfb(), cam.getSize());
+  client.write((char*) cam.getfb(), cam.getSize());
 }
 
+void streamServer(WebServer* server) {
+  server->on("/mjpeg/1", HTTP_GET, handleJPGSstream);
+  server->on("/jpg", HTTP_GET, handleJPG);
+  serveAssets(server);
+  configServer = server;
+}
 
 
 // ==== SETUP method ==================================================================

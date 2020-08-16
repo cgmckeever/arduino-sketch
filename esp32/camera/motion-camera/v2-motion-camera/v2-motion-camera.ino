@@ -69,13 +69,13 @@ void setup(void) {
     //initCamera();
     //flash(false);
 
-    configManager.stopWebserver();
+    //configManager.stopWebserver();
     streamSetup();
 }
 
 void loop() {
 
-    configManager.loop();
+    //configManager.loop();
 
     /*
     sendTimer.tick();

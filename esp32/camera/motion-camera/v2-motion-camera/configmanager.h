@@ -2,7 +2,8 @@
 #include <ConfigManager.h>
 ConfigManager configManager;
 bool wifiConnected = false;
-void APCallback(WebServer *server);
+
+void streamServer(WebServer* server);
 
 /* == Brownout Handler ==*/
 #include "soc/soc.h"
@@ -99,6 +100,8 @@ void configSetup() {
     configManager.addParameter("cameraRawGMA", &config.camera_raw_gma);
 
     configManager.setInitCallback(configDefaults);
+    configManager.setAPCallback(streamServer);
+    configManager.setAPICallback(streamServer);
     configManager.setAPFilename("/wifiConfig.html");
 
     configManager.setAPName("Spy-Cam-v2");
@@ -125,8 +128,4 @@ void serveAssets(WebServer *server) {
   });
 
   Serial.println("Assets Registered");
-}
-
-void APCallback(WebServer *server) {
-    serveAssets(server);
 }
