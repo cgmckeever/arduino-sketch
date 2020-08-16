@@ -90,6 +90,7 @@ void configSetup() {
     configManager.setAPCallback(stationModeCallback);
     configManager.setAPICallback(stationModeCallback);
     configManager.setAPFilename("/wifiConfig.html");
+    configManager.setWifiConfigURI("/wifi");
 
     configManager.setAPName("Spy-Cam-v2");
 

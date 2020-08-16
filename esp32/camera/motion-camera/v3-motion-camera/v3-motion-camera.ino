@@ -71,6 +71,7 @@ void loop() {
     // delay the main loop
     //vTaskDelay(1000);
     configManager.loop();
+    if (requireReboot) ESP.restart();
 }
 
 /*
@@ -178,13 +179,12 @@ void stationModeCallback(WebServer* server) {
   server->on("/capture", HTTP_GET, handleCapture);
   serveAssets(server);
   initHTTP(server);
+  registerCameraServer(server);
   configServer = server;
 }
 
-/*
-void registerCameraServer() {
-
-    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
+void registerCameraServer(WebServer* server) {
+    server->on("/config", HTTPMethod::HTTP_GET, [server]() {
         loggerln("GET /config");
 
         StaticJsonDocument<1024> doc;
@@ -197,52 +197,45 @@ void registerCameraServer() {
 
         String jsonResponse;
         serializeJson(json, jsonResponse);
-
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", jsonResponse);
-        response->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(response);
+        server->send(200, FPSTR(mimeJSON), jsonResponse);
     });
 
-    // https://github.com/me-no-dev/ESPAsyncWebServer/issues/195
-    webServer.on("/config", HTTP_PUT, [](AsyncWebServerRequest *request) {},
-        NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-            loggerln("PUT /config");
-            DynamicJsonDocument doc(1024);
-            auto error = deserializeJson(doc, (const char*)data);
 
-            if (error) {
-                request->send(400);
-                return;
+    server->on("/config", HTTPMethod::HTTP_PUT, [server]() {
+        loggerln("PUT /config");
+        DynamicJsonDocument doc(1024);
+        auto error = deserializeJson(doc, server->arg("plain"));
+
+        if (error) {
+            server->send(400);
+            return;
+        }
+
+        JsonObject json = doc.as<JsonObject>();
+
+        if (json.containsKey("camera")) {
+            JsonObject camera = json["camera"];
+            for (JsonPair kv : camera) {
+                updateParam(kv.key().c_str(), kv.value().as<int>());
             }
+        }
 
-            JsonObject json = doc.as<JsonObject>();
-
-            if (json.containsKey("camera")) {
-                JsonObject camera = json["camera"];
-                for (JsonPair kv : camera) {
-                    updateParam(kv.key().c_str(), kv.value().as<int>());
+        if (json.containsKey("config")) {
+            JsonObject configs = json["config"];
+            for (JsonPair kv : configs) {
+                String key = kv.key().c_str();
+                loggerln("Device Param: " + key);
+                if (key == "captureFramesize") {
+                    config.captureFramesize = kv.value().as<int>();
+                } else if (key == "streamFramesize") {
+                    config.streamFramesize = kv.value().as<int>();
                 }
             }
+        }
 
-            if (json.containsKey("config")) {
-                JsonObject configs = json["config"];
-                for (JsonPair kv : configs) {
-                    String key = kv.key().c_str();
-                    loggerln("Device Param: " + key);
-                    if (key == "captureFramesize") {
-                        config.captureFramesize = kv.value().as<int>();
-                    } else if (key == "streamFramesize") {
-                        config.streamFramesize = kv.value().as<int>();
-                    }
-                }
-            }
-
-            configManager.save();
-
-            request->send(200);
+        configManager.save();
+        server->send(200);
     });
+
+
 }
-
-*/
-
-

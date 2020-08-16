@@ -27,6 +27,8 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 time_t bootTime = 0;
 
+bool requireReboot = false;
+
 void bootNotify() {
     if (!wifiConnected) return;
 
@@ -112,18 +114,21 @@ bool rebootCallback(void *) {
 void initHTTP(WebServer* server) {
 
     server->on("/reboot", HTTPMethod::HTTP_GET, [server]() {
+        requireReboot = true;
         server->send(200, "text/plain", "Rebooting...");
     });
 
     server->on("/reset", HTTPMethod::HTTP_GET, [server]() {
         loggerln("/reset");
-        //configManager.clearAllSettings(false);
+        configManager.clearAllSettings(false);
+        requireReboot = true;
         server->send(200, "text/plain", "Configs Cleared");
     });
 
     server->on("/reconfig", HTTPMethod::HTTP_GET, [server]() {
         loggerln("/reconfig");
         configDefaults();
+        requireReboot = true;
         server->send(200, "text/plain", "Configs Set to Defaults");
     });
 

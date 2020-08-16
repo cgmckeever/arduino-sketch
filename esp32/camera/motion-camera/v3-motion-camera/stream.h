@@ -11,6 +11,7 @@ const int TICKRATE = 50;
 // current buffer and size
 volatile char* camBuf;
 volatile size_t camSize;
+volatile int camTime;
 
 // ESP32 has two cores:
 #define cpu0 0
@@ -103,12 +104,13 @@ void capture(void* pvParameters) {
 
     //  Only switch frames around if no frame is currently being streamed to a client
     //  Wait on a semaphore until client operation completes
-    xSemaphoreTake( frameSync, portMAX_DELAY );
+    xSemaphoreTake(frameSync, portMAX_DELAY);
 
     //  Do not allow interrupts while switching the current frame
     portENTER_CRITICAL(&xSemaphore);
     camBuf = fbs[ifb];
     camSize = s;
+    camTime = millis();
     ifb++;
     ifb &= 1;  // this should produce 1, 0, 1, 0, 1 ... sequence
     portEXIT_CRITICAL(&xSemaphore);
@@ -129,10 +131,6 @@ void capture(void* pvParameters) {
     if (eTaskGetState(taskStream) == eSuspended) vTaskSuspend(NULL);
   }
 }
-
-
-
-
 
 // ==== Handle connection request from clients =========
 const char HEADER[] = "HTTP/1.1 200 OK\r\n" \
@@ -196,7 +194,7 @@ void stream(void * pvParameters) {
         client->write(CTNTTYPE, cntLen);
         sprintf(buf, "%d\r\n\r\n", camSize);
         client->write(buf, strlen(buf));
-        client->write((char*) camBuf, (size_t)camSize);
+        client->write((char*) camBuf, (size_t) camSize);
         client->write(BOUNDARY, bdrLen);
 
         // Push client to back of queue
@@ -228,13 +226,14 @@ const int jhdLen = strlen(JHEADER);
 
 void handleCapture(void) {
   WiFiClient client = configServer->client();
+  if (client.connected()) {
+    client.write(JHEADER, jhdLen);
 
-  if (!client.connected()) return;
-  xSemaphoreTake(frameSync, portMAX_DELAY);
-  cam.run();
-  client.write(JHEADER, jhdLen);
-  client.write((char*) cam.getBuffer(), cam.getSize());
-  xSemaphoreGive(frameSync);
+    if (millis() - camTime > 1000) {
+      cam.run();
+      client.write((char*) cam.getBuffer(), cam.getSize());
+    } else client.write((char*) camBuf, (size_t) camSize);
+  }
 }
 
 void streamSetup() {

@@ -540,8 +540,8 @@
             //const hostName = "192.168.1.10"
             const hostName = window.location.hostname
             const baseHost = "http://" + hostName
-            const streamURL = "ws://" + hostName + "/stream"
-            const logURL = "ws://" + hostName + "/log"
+            const streamURL = baseHost + "/stream"
+            const captureURL = baseHost + "/capture?_ts="
 
             const closeButton = document.getElementById('close-image')
             const viewContainer = document.getElementById('image-container')
@@ -550,40 +550,23 @@
             const streamButton = document.getElementById('stream-button')
             const stillButton = document.getElementById('still-button')
 
-            var ws
-            var isStreaming = false
-            const logSocket = new WebSocket(logURL)
-
-            logSocket.onmessage = message => { console.log(message.data) }
-
             const hide = el => { el.classList.add('hidden') }
             const show = el => { el.classList.remove('hidden') }
 
             const startStream = () => {
-                ws = new WebSocket(streamURL)
-                isStreaming = true;
-                ws.onmessage = message => {
-                    if (message.data instanceof Blob) {
-                      var urlObject = URL.createObjectURL(message.data)
-                      viewContent.src = urlObject;
-                }};
+                viewContent.src = streamURL
                 show(viewContainer)
                 streamButton.innerHTML = 'Stop Stream'
             }
 
             const stopStream = () => {
-                // window.stop();
-                if (isStreaming) ws.close();
+                window.stop();
                 streamButton.innerHTML = 'Start Stream'
                 hide(viewContainer)
             }
 
             streamButton.onclick = () => {
-                if (streamButton.innerHTML === 'Stop Stream') {
-                    stopStream()
-                } else {
-                    startStream()
-                }
+                streamButton.innerHTML === 'Stop Stream' ? stopStream() : startStream()
             }
 
             closeButton.onclick = () => {
@@ -592,7 +575,7 @@
 
             const getStill = () => {
                 stopStream()
-                viewContent.src = `${baseHost}/capture?_cb=${Date.now()}`
+                viewContent.src = `${captureURL}${Date.now()}`
                 show(viewContainer)
             }
 
