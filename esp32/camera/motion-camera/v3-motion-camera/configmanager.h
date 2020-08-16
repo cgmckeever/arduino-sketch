@@ -46,14 +46,6 @@ bool stringEmpty(char* checkString) {
   return (firstChar == '\0' || checkString == NULL || firstChar == '\xFF');
 }
 
-int setStreamQueue() {
-  return config.streamFramesize > config.streamSizeQueued ? 1 : config.streamQueueMax;
-}
-
-int setStreamWait() {
-  return config.streamFramesize > config.streamSizeQueued ? 1000 : config.streamWaitMin;
-}
-
 void configDefaults() {
   Serial.println("config defaults set");
 
@@ -65,9 +57,6 @@ void configDefaults() {
   config.sendAlerts = true;
 
   config.streamFramesize = 3;
-  config.streamSizeQueued = 3;
-  config.streamQueueMax = 2;
-  config.streamWaitMin = 200;
 
   config.camera_xclk_freq_hz = 20000000;
   config.camera_exposure = 600;
@@ -87,9 +76,6 @@ void configSetup() {
     configManager.addParameter("sendAlerts", &config.sendAlerts);
 
     configManager.addParameter("streamFramesize", &config.streamFramesize);
-    configManager.addParameter("streamQueueMax", &config.streamQueueMax);
-    configManager.addParameter("streamSizeQueued", &config.streamSizeQueued);
-    configManager.addParameter("streamWaitMin", &config.streamWaitMin);
 
     // Camera Settings
     configManager.addParameter("cameraFreq", &config.camera_xclk_freq_hz);

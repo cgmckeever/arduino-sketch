@@ -23,8 +23,8 @@ WebServer *configServer;
 
 void capture(void* pvParameters);
 void stream(void * pvParameters);
-void handleJPGSstream(void);
-void handleJPG(void);
+void handleStream(void);
+void handleCapture(void);
 char* allocateMemory(char* aPtr, size_t aSize);
 
 // ===== task handles =========================
@@ -185,7 +185,7 @@ const int hdrLen = strlen(HEADER);
 const int bdrLen = strlen(BOUNDARY);
 const int cntLen = strlen(CTNTTYPE);
 
-void handleJPGSstream(void) {
+void handleStream(void) {
   //  Can only acommodate 10 clients. The limit is a default for WiFi connections
   if ( !uxQueueSpacesAvailable(streamingClients) ) return;
 
@@ -278,7 +278,7 @@ const char JHEADER[] = "HTTP/1.1 200 OK\r\n" \
                        "Content-type: image/jpeg\r\n\r\n";
 const int jhdLen = strlen(JHEADER);
 
-void handleJPG(void) {
+void handleCapture(void) {
   WiFiClient client = configServer->client();
 
   if (!client.connected()) return;

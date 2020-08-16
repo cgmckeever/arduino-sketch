@@ -40,8 +40,8 @@ void bootNotify() {
     smtp.setMessage("<div style=\"color:#2f4468;\"><h1>Hello World!</h1><p>- Sent from ESP32 board</p></div>", true);
 
     if (MailClient.sendMail(smtp)) {
-        Serial.println("Boot Notification Sent");
-    } else Serial.println("Error sending Email, " + MailClient.smtpErrorReason());
+        loggerln("Boot Notification Sent");
+    } else loggerln("Error sending Email, " + MailClient.smtpErrorReason());
 
     smtp.empty();
 }
@@ -64,11 +64,11 @@ bool initSD() {
 
     SPI.begin(14, 2, 15, 13);
     if(!SD.begin(13) || SD.cardType() == CARD_NONE) {
-        Serial.println("SD Card Mount Failed");
+        loggerln("SD Card Mount Failed");
         return false;
     }
 
-    Serial.println("SD Card Detected.");
+    loggerln("SD Card Detected.");
     sdEnabled = true;
     return sdEnabled;
 }
@@ -82,15 +82,17 @@ bool closeSD() {
 String saveFile(unsigned char* buf, unsigned int len, String path) {
     if (sdEnabled) {
         fs::FS &fs = SD;
-        Serial.printf("Picture file name: %s\n", path.c_str());
+        logger("Picture file name: ");
+        loggerln(path.c_str());
 
         File handle = fs.open(path.c_str(), FILE_WRITE);
         if(!handle) {
-            Serial.println("Failed to open file in writing mode");
+            loggerln("Failed to open file in writing mode");
             path = "";
         } else {
             handle.write(buf, len);
-            Serial.printf("Saved file to path: %s\n", path.c_str());
+            logger("Saved file to path: ");
+            loggerln(path.c_str());
             handle.close();
         }
     } else {

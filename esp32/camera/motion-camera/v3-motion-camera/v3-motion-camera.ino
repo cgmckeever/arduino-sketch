@@ -172,8 +172,8 @@ String saveBuffer(uint8_t* buf, size_t len, String ext) {
 }
 
 void stationModeCallback(WebServer* server) {
-  server->on("/mjpeg/1", HTTP_GET, handleJPGSstream);
-  server->on("/capture", HTTP_GET, handleJPG);
+  server->on("/mjpeg/1", HTTP_GET, handleStream);
+  server->on("/capture", HTTP_GET, handleCapture);
   serveAssets(server);
   configServer = server;
 }

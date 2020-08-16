@@ -47,6 +47,8 @@ camera_config_t getConfig() {
 bool initCamera() {
     cameraStatus = cam.init(getConfig());
 
+    return cameraStatus;
+
     // camera class?
     sensor_t *s = esp_camera_sensor_get();
     s->set_aec_value(s, config.camera_exposure);
