@@ -27,9 +27,6 @@ struct Config {
     bool sendAlerts;
 
     int streamFramesize;
-    int streamQueueMax;
-    int streamSizeQueued;
-    int streamWaitMin;
 
     int camera_xclk_freq_hz;
     int camera_exposure;

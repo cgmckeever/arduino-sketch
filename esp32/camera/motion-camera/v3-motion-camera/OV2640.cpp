@@ -1,9 +1,10 @@
 #include "OV2640.h"
 
-void OV2640::run(void)
+size_t OV2640::run(void)
 {
     if (buffer) esp_camera_fb_return(buffer);
     buffer = esp_camera_fb_get();
+    return buffer->len;
 }
 
 void OV2640::runIfNeeded(void)

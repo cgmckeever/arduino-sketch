@@ -229,6 +229,8 @@ void registerCameraServer(WebServer* server) {
                     config.captureFramesize = kv.value().as<int>();
                 } else if (key == "streamFramesize") {
                     config.streamFramesize = kv.value().as<int>();
+                    sensor_t *sensor = esp_camera_sensor_get();
+                    sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
                 }
             }
         }

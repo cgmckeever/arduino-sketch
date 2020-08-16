@@ -35,31 +35,23 @@ QueueHandle_t streamingClients;
 // ==== Memory allocator that takes advantage of PSRAM if present =======================
 char* allocateMemory(char* aPtr, size_t aSize) {
 
-  //  Since current buffer is too smal, free it
-  if (aPtr != NULL) free(aPtr);
-
-  size_t freeHeap = ESP.getFreeHeap();
   char* ptr = NULL;
 
-  // If memory requested is more than 2/3 of the currently
-  // free heap, try PSRAM immediately
-  if ( aSize > freeHeap * 2 / 3 ) {
-    if ( psramFound() && ESP.getFreePsram() > aSize ) {
-      ptr = (char*) ps_malloc(aSize);
-    }
-  } else {
-    //  Enough free heap - let's try allocating fast RAM as a buffer
-    ptr = (char*) malloc(aSize);
+  //  Since current buffer is too smal, free it
+  if (aPtr != NULL) free(aPtr);
+  if (aSize == 0) return ptr;
 
-    //  If allocation on the heap failed, let's give PSRAM one more chance:
-    if ( ptr == NULL && psramFound() && ESP.getFreePsram() > aSize) {
-      ptr = (char*) ps_malloc(aSize);
-    }
-  }
+  if (psramFound() && ESP.getFreePsram() > aSize) {
+    ptr = (char*) ps_malloc(aSize);
+    loggerln("Psram");
+  } else ptr = (char*) malloc(aSize);
 
   // Finally, if the memory pointer is NULL, we were not able to
   // allocate any memory, and that is a terminal condition.
-  if (ptr == NULL) ESP.restart();
+  if (ptr == NULL) {
+    loggerln("YIKES - Memory Blown");
+    ESP.restart();
+  }
 
   return ptr;
 }
@@ -78,29 +70,26 @@ void capture(void* pvParameters) {
   // sizes and index of the current frame
   char* fbs[2] = { NULL, NULL };
   size_t fSize[2] = { 0, 0 };
-  int ifb = 0;
+  int currentFrame = 0;
 
   xLastWakeTime = xTaskGetTickCount();
 
+  sensor_t *sensor = esp_camera_sensor_get();
+  sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
+
   for (;;) {
-    // Grab a frame from the camera and query its size
-    cam.run();
-    size_t s = cam.getSize();
+    size_t s = cam.run();
+    taskYIELD();
 
     // If frame size is more that we have previously allocated
     // request  125% of the current frame space
-    if (s > fSize[ifb]) {
-      fSize[ifb] = s * 4 / 3;
-      fbs[ifb] = allocateMemory(fbs[ifb], fSize[ifb]);
+    if (s > fSize[currentFrame]) {
+      fSize[currentFrame] = s * 9 / 8;
+      fbs[currentFrame] = allocateMemory(fbs[currentFrame], fSize[currentFrame]);
     }
 
     //  Copy current frame into local buffer
-    char* b = (char*) cam.getBuffer();
-    memcpy(fbs[ifb], b, s);
-
-    //  Let other tasks run and wait until the end of the current frame rate interval (if any time left)
-    taskYIELD();
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    memcpy(fbs[currentFrame], cam.getBuffer(), s);
 
     //  Only switch frames around if no frame is currently being streamed to a client
     //  Wait on a semaphore until client operation completes
@@ -108,11 +97,11 @@ void capture(void* pvParameters) {
 
     //  Do not allow interrupts while switching the current frame
     portENTER_CRITICAL(&xSemaphore);
-    camBuf = fbs[ifb];
+    camBuf = fbs[currentFrame];
     camSize = s;
     camTime = millis();
-    ifb++;
-    ifb &= 1;  // this should produce 1, 0, 1, 0, 1 ... sequence
+    currentFrame++;
+    currentFrame &= 1;  // this should produce 1, 0, 1, 0, 1 ... sequence
     portEXIT_CRITICAL(&xSemaphore);
 
     // Let anyone waiting for a frame know that the frame is ready
@@ -122,13 +111,15 @@ void capture(void* pvParameters) {
     // and it could start sending frames to the clients, if any
     xTaskNotifyGive(taskStream);
 
-    // Immediately let other (streaming) tasks run
-    taskYIELD();
-
     // If streaming task has suspended itself (no active clients to stream to)
     // there is no need to grab frames from the camera. We can save some juice
     // by suspedning the tasks passing NULL means "suspend yourself"
-    if (eTaskGetState(taskStream) == eSuspended) vTaskSuspend(NULL);
+    if (eTaskGetState(taskStream) == eSuspended) {
+      vTaskSuspend(NULL);
+    } else {
+      taskYIELD();
+      vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    }
   }
 }
 
@@ -169,8 +160,8 @@ void stream(void * pvParameters) {
   TickType_t xLastWakeTime;
   TickType_t xFrequency;
 
-  //  Wait until the first frame is captured and there is something to send
-  //  to clients
+  //  Wait until the first frame is captured and there
+  // is something to send to clients
   ulTaskNotifyTake(pdTRUE,          /* Clear the notification value before exiting. */
                     portMAX_DELAY); /* Block indefinitely. */
 
@@ -197,21 +188,17 @@ void stream(void * pvParameters) {
         client->write((char*) camBuf, (size_t) camSize);
         client->write(BOUNDARY, bdrLen);
 
-        // Push client to back of queue
-        xQueueSend(streamingClients, (void *) &client, 0);
-
         //  The frame has been served. Release the semaphore and let other tasks run.
         //  If there is a frame switch ready, it will happen now in between frames
         xSemaphoreGive(frameSync);
         taskYIELD();
-      }
-    } else {
-      // Suspend till clients
-      vTaskSuspend(NULL);
-    }
-    //  Let other tasks run (reduced freq per client)
-    taskYIELD();
 
+        // Push client to back of queue
+        xQueueSend(streamingClients, (void *) &client, 0);
+      }
+    } else vTaskSuspend(NULL);
+
+    taskYIELD();
     xFrequency = pdMS_TO_TICKS(TICKRATE);
     if (activeClients) xFrequency /= (activeClients + 1);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -229,10 +216,11 @@ void handleCapture(void) {
   if (client.connected()) {
     client.write(JHEADER, jhdLen);
 
-    if (millis() - camTime > 1000) {
-      cam.run();
-      client.write((char*) cam.getBuffer(), cam.getSize());
-    } else client.write((char*) camBuf, (size_t) camSize);
+    sensor_t *sensor = esp_camera_sensor_get();
+    sensor->set_framesize(sensor, (framesize_t) config.captureFramesize);
+    size_t len = cam.run();
+    client.write((char*) cam.getBuffer(), len);
+    sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
   }
 }
 

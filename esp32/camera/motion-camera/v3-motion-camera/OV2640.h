@@ -18,7 +18,7 @@ public:
     ~OV2640() {};
 
     esp_err_t init(camera_config_t config);
-    void run(void);
+    size_t run(void);
     size_t getSize(void);
     uint8_t *getBuffer(void);
     int getWidth(void);
