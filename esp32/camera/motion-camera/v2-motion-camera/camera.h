@@ -1,9 +1,9 @@
-#include "esp_camera.h"
 #include "camera_pins.h"
 
-#include "fd_forward.h"
+#include "OV2640.h"
+OV2640 cam;
 
-bool cameraOK = false;
+bool cameraStatus = false;
 bool *cameraInUse = new bool(false);
 
 enum cameraModes { isReady, isStream, isCapture, isMotion };
@@ -45,10 +45,9 @@ camera_config_t getConfig() {
 }
 
 bool initCamera() {
+    cameraStatus = cam.init(getConfig());
 
-    camera_config_t cameraConfig = getConfig();
-    cameraOK = esp_camera_init(&cameraConfig) == ESP_OK;
-
+    // camera class?
     sensor_t *s = esp_camera_sensor_get();
     s->set_aec_value(s, config.camera_exposure);
     s->set_exposure_ctrl(s, config.camera_exposure_control);
@@ -57,9 +56,11 @@ bool initCamera() {
     s->set_hmirror(s, config.camera_hmirror);
     s->set_raw_gma(s, config.camera_raw_gma);
 
+    // move these to camera class
     *cameraMode = isReady;
     *cameraInUse = false;
-    return cameraOK;
+
+    return cameraStatus;
 }
 
 void flash(bool on) {

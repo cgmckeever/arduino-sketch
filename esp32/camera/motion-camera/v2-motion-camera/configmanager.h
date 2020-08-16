@@ -3,7 +3,8 @@
 ConfigManager configManager;
 bool wifiConnected = false;
 
-void streamServer(WebServer* server);
+void apModeCallback(WebServer* server);
+void stationModeCallback(WebServer* server);
 
 /* == Brownout Handler ==*/
 #include "soc/soc.h"
@@ -100,8 +101,8 @@ void configSetup() {
     configManager.addParameter("cameraRawGMA", &config.camera_raw_gma);
 
     configManager.setInitCallback(configDefaults);
-    configManager.setAPCallback(streamServer);
-    configManager.setAPICallback(streamServer);
+    configManager.setAPCallback(stationModeCallback);
+    configManager.setAPICallback(stationModeCallback);
     configManager.setAPFilename("/wifiConfig.html");
 
     configManager.setAPName("Spy-Cam-v2");

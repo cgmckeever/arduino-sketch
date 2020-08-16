@@ -133,9 +133,6 @@ void initHTTP(int port=80) {
         request->send(SPIFFS, "/index.html", "text/html");
     });
 
-    webServer.addHandler(&logSocket);
-    webServer.begin();
-
     logger("Ready at: http://");
     logger(deviceIP());
     logger(":");

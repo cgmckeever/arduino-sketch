@@ -15,12 +15,6 @@
 #include "camera.h"
 #include "stream.h"
 
-/** == used for capture/chunk streaming == **/
-uint8_t* captureBuf;
-size_t captureLen;
-camera_fb_t *captureFB;
-
-
 /* == motion.h == */
 /*
 #define MOTION_DEBUG false
@@ -41,14 +35,10 @@ struct argsSend {
     String path;
 };
 
-//Timer<5, millis, argsSend*> sendTimer;
-//Timer<1, millis, void*> motionTimer;
-//Timer<1, millis, void*> socketTimer;
-
 void setup(void) {
     Serial.begin(115200);
     DEBUG_MODE = true;
-    //initSD();
+    initSD();
 
     configSetup();
     //configDefaults();
@@ -58,38 +48,24 @@ void setup(void) {
         setTime();
         //if (config.sendAlerts) bootNotify();
 
-        //configManager.stopWebserver();
         //registerCameraServer();
-        //initHTTP(80);
 
         //motionTimer.every(500, timedMotion);
     }
 
-    //streamWait = setStreamWait();
-    //initCamera();
+    initCamera();
     //flash(false);
 
-    //configManager.stopWebserver();
     streamSetup();
 }
 
 void loop() {
-
-    //configManager.loop();
-
     /*
     sendTimer.tick();
-    timer.tick();
-
 
     motionTimer.tick();
     //motionLoop();
 
-    sockets();
-
-    if (logSocket.count() > 0 || config.disableCameraMotion) {
-        disableMotion();
-    } else enableMotion();
     */
 
     vTaskDelay(1000);
@@ -195,34 +171,15 @@ String saveBuffer(uint8_t* buf, size_t len, String ext) {
     return path;
 }
 
-
-int chunkBuffer(char *buffer, size_t maxLen, size_t index)
-{
-    size_t max  = (ESP.getFreeHeap() / 3) & 0xFFE0;
-
-    size_t len = captureLen - index;
-    if (len > maxLen) len = maxLen;
-    if (len > max) len = max;
-
-    if (len > 0) {
-        if (index == 0) {
-            loggerln("Start image spool");
-            Serial.printf(PSTR("[WEB] Sending chunked buffer (max chunk size: %4d) "), max);
-            Serial.println("");
-        }
-        memcpy_P(buffer, captureBuf + index, len);
-    } else {
-        *captureBuf = NULL;
-        bufferRelease(captureFB);
-        cameraRelease(isCapture);
-    }
-
-    return len;
+void stationModeCallback(WebServer* server) {
+  server->on("/mjpeg/1", HTTP_GET, handleJPGSstream);
+  server->on("/capture", HTTP_GET, handleJPG);
+  serveAssets(server);
+  configServer = server;
 }
 
 /*
 void registerCameraServer() {
-    webServer.addHandler(&streamSocket);
 
     webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
         loggerln("GET /config");
@@ -280,43 +237,6 @@ void registerCameraServer() {
             configManager.save();
 
             request->send(200);
-    });
-
-    webServer.on("/capture", HTTP_GET, [](AsyncWebServerRequest *request) {
-        loggerln("/capture");
-        *cameraMode = isCapture;
-        streamWait = 1000;
-
-        int waitStart = millis();
-        while (*cameraInUse == true) {
-            *cameraMode = isCapture;
-            streamWait = 1000;
-            if (millis() - waitStart > 1000) {
-                request->send(200, "text/plain", "Capture Timeout");
-                loggerln("Capture timeout");
-                cameraRelease(isCapture);
-                return;
-            }
-        }
-
-        disableMotion();
-        cameraControl(isCapture);
-
-        // only capture JPEG, no free(buf)
-        pixformat_t pixformat = PIXFORMAT_JPEG;
-        sensor_t *sensor = esp_camera_sensor_get();
-        sensor->set_pixformat(sensor, pixformat);
-        sensor->set_framesize(sensor, (framesize_t) config.captureFramesize);
-
-        captureFB = capture(captureBuf, captureLen);
-        String path = saveBuffer(captureBuf, captureLen, "jpg");
-
-        AsyncWebServerResponse *response = request->beginChunkedResponse("image/jpeg", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-            return chunkBuffer((char *) buffer, maxLen, index);
-        });
-        response->addHeader("Content-Disposition", "inline; filename=" + path);
-        response->addHeader("Access-Control-Allow-Origin", "*");
-        request->send(response);
     });
 }
 

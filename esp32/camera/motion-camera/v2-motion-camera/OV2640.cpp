@@ -2,43 +2,37 @@
 
 void OV2640::run(void)
 {
-    //return the frame buffer back to the driver for reuse
-    if (fb) esp_camera_fb_return(fb);
-    fb = esp_camera_fb_get();
+    if (buffer) esp_camera_fb_return(buffer);
+    buffer = esp_camera_fb_get();
 }
 
 void OV2640::runIfNeeded(void)
 {
-    if (!fb) run();
+    if (!buffer) run();
 }
 
 int OV2640::getWidth(void)
 {
     runIfNeeded();
-    return fb->width;
+    return buffer->width;
 }
 
 int OV2640::getHeight(void)
 {
     runIfNeeded();
-    return fb->height;
+    return buffer->height;
 }
 
 size_t OV2640::getSize(void)
 {
     runIfNeeded();
-    // FIXME - this shouldn't be possible but apparently the new cam board returns null sometimes?
-    if (!fb) return 0;
-    return fb->len;
+    return (!buffer) ? 0 : buffer->len;
 }
 
-uint8_t *OV2640::getfb(void)
+uint8_t *OV2640::getBuffer(void)
 {
     runIfNeeded();
-    // FIXME - this shouldn't be possible but apparently the new cam board returns null sometimes?
-    if (!fb) return NULL;
-
-    return fb->buf;
+    return (!buffer) ? NULL : buffer->buf;
 }
 
 esp_err_t OV2640::init(camera_config_t camConfig)
