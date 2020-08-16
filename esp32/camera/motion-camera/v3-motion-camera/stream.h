@@ -6,10 +6,7 @@ https://github.com/arkhipenko/esp32-cam-mjpeg-multiclient
 
 // We will try to achieve 25 FPS frame rate
 //const int FPS = 14;
-const int TICKRATE = 75;
-
-// We will handle web client requests every 50 ms (20 Hz)
-const int WSINTERVAL = 500;
+const int TICKRATE = 50;
 
 // current buffer and size
 volatile char* camBuf;
@@ -22,15 +19,9 @@ volatile size_t camSize;
 #include <WiFiClient.h>
 WebServer *configServer;
 
-void capture(void* pvParameters);
-void stream(void * pvParameters);
-void handleStream(void);
-void handleCapture(void);
-char* allocateMemory(char* aPtr, size_t aSize);
 
 // ===== task handles =========================
 // Streaming is implemented with 3 tasks:
-TaskHandle_t taskMain;    // handles client connections to the webserver
 TaskHandle_t taskCapture; // handles getting picture frames from the camera and storing them locally
 TaskHandle_t taskStream;  // actually streaming frames to all connected clients
 
@@ -40,35 +31,37 @@ SemaphoreHandle_t frameSync = NULL;
 // Queue stores currently connected clients to whom we are streaming
 QueueHandle_t streamingClients;
 
+// ==== Memory allocator that takes advantage of PSRAM if present =======================
+char* allocateMemory(char* aPtr, size_t aSize) {
 
-// ======== Server Connection Handler Task ==========================
-void mainHandler(void* pvParameters) {
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(WSINTERVAL);
+  //  Since current buffer is too smal, free it
+  if (aPtr != NULL) free(aPtr);
 
-  // Creating frame synchronization semaphore and initializing it
-  frameSync = xSemaphoreCreateBinary();
-  xSemaphoreGive(frameSync);
+  size_t freeHeap = ESP.getFreeHeap();
+  char* ptr = NULL;
 
-  // Creating a queue to track all connected clients
-  streamingClients = xQueueCreate(10, sizeof(WiFiClient*));
+  // If memory requested is more than 2/3 of the currently
+  // free heap, try PSRAM immediately
+  if ( aSize > freeHeap * 2 / 3 ) {
+    if ( psramFound() && ESP.getFreePsram() > aSize ) {
+      ptr = (char*) ps_malloc(aSize);
+    }
+  } else {
+    //  Enough free heap - let's try allocating fast RAM as a buffer
+    ptr = (char*) malloc(aSize);
 
-  //  Creating RTOS task for grabbing frames from the camera
-  xTaskCreatePinnedToCore(capture, "captureTask", 4096, NULL, 2, &taskCapture, cpu1);
-
-  //  Creating task to push the stream to all connected clients
-  xTaskCreatePinnedToCore(stream, "streamTask", 4096, NULL, 2, &taskStream, cpu1);
-
-  for (;;) {
-    //configManager.loop();
-
-    // After every server client handling request
-    // let other tasks run and then pause
-    taskYIELD();
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    //  If allocation on the heap failed, let's give PSRAM one more chance:
+    if ( ptr == NULL && psramFound() && ESP.getFreePsram() > aSize) {
+      ptr = (char*) ps_malloc(aSize);
+    }
   }
-}
 
+  // Finally, if the memory pointer is NULL, we were not able to
+  // allocate any memory, and that is a terminal condition.
+  if (ptr == NULL) ESP.restart();
+
+  return ptr;
+}
 
 // ==== RTOS task to grab frames from the camera =========================
 void capture(void* pvParameters) {
@@ -138,37 +131,7 @@ void capture(void* pvParameters) {
 }
 
 
-// ==== Memory allocator that takes advantage of PSRAM if present =======================
-char* allocateMemory(char* aPtr, size_t aSize) {
 
-  //  Since current buffer is too smal, free it
-  if (aPtr != NULL) free(aPtr);
-
-  size_t freeHeap = ESP.getFreeHeap();
-  char* ptr = NULL;
-
-  // If memory requested is more than 2/3 of the currently
-  // free heap, try PSRAM immediately
-  if ( aSize > freeHeap * 2 / 3 ) {
-    if ( psramFound() && ESP.getFreePsram() > aSize ) {
-      ptr = (char*) ps_malloc(aSize);
-    }
-  } else {
-    //  Enough free heap - let's try allocating fast RAM as a buffer
-    ptr = (char*) malloc(aSize);
-
-    //  If allocation on the heap failed, let's give PSRAM one more chance:
-    if ( ptr == NULL && psramFound() && ESP.getFreePsram() > aSize) {
-      ptr = (char*) ps_malloc(aSize);
-    }
-  }
-
-  // Finally, if the memory pointer is NULL, we were not able to
-  // allocate any memory, and that is a terminal condition.
-  if (ptr == NULL) ESP.restart();
-
-  return ptr;
-}
 
 
 // ==== Handle connection request from clients =========
@@ -267,11 +230,24 @@ void handleCapture(void) {
   WiFiClient client = configServer->client();
 
   if (!client.connected()) return;
+  xSemaphoreTake(frameSync, portMAX_DELAY);
   cam.run();
   client.write(JHEADER, jhdLen);
   client.write((char*) cam.getBuffer(), cam.getSize());
+  xSemaphoreGive(frameSync);
 }
 
 void streamSetup() {
-  xTaskCreatePinnedToCore(mainHandler, "mainTask", 4096, NULL, 2, &taskMain, cpu1);
+  // Creating frame synchronization semaphore and initializing it
+  frameSync = xSemaphoreCreateBinary();
+  xSemaphoreGive(frameSync);
+
+  // Creating a queue to track all connected clients
+  streamingClients = xQueueCreate(10, sizeof(WiFiClient*));
+
+  //  Creating RTOS task for grabbing frames from the camera
+  xTaskCreatePinnedToCore(capture, "captureTask", 4096, NULL, 2, &taskCapture, cpu1);
+
+  //  Creating task to push the stream to all connected clients
+  xTaskCreatePinnedToCore(stream, "streamTask", 4096, NULL, 2, &taskStream, cpu1);
 }

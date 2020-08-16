@@ -31,9 +31,9 @@ camera_config_t getConfig() {
     cameraConfig.pin_pwdn = PWDN_GPIO_NUM;
     cameraConfig.pin_reset = RESET_GPIO_NUM;
 
-    cameraConfig.xclk_freq_hz = 20000000;
+    //cameraConfig.xclk_freq_hz = 20000000;
     //cameraConfig.xclk_freq_hz = 5000000;
-    //cameraConfig.xclk_freq_hz = config.camera_xclk_freq_hz;
+    cameraConfig.xclk_freq_hz = config.camera_xclk_freq_hz;
 
     cameraConfig.jpeg_quality = 10;
     cameraConfig.fb_count = 1;
@@ -46,8 +46,6 @@ camera_config_t getConfig() {
 
 bool initCamera() {
     cameraStatus = cam.init(getConfig());
-
-    return cameraStatus;
 
     // camera class?
     sensor_t *s = esp_camera_sensor_get();
@@ -66,9 +64,12 @@ bool initCamera() {
 }
 
 void flash(bool on) {
-    gpio_pad_select_gpio(GPIO_NUM_4);
-    gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
+    // TODO add pinouts ?
+    if (HAS_FLASH) {
+        gpio_pad_select_gpio(GPIO_NUM_4);
+        gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);
+        gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
+    }
 }
 
 void cameraControl(cameraModes current) {

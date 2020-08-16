@@ -1,5 +1,10 @@
 #include "constants.h"
 
+template<typename T>
+void logger(T msg, bool newline = false);
+template<typename T>
+void loggerln(T msg);
+
 /* == Timer ==*/
 //#include <arduino-timer.h>
 //Timer<1, millis, void *> timer;
@@ -21,11 +26,6 @@ bool sdEnabled = false;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 time_t bootTime = 0;
-
-template<typename T>
-void logger(T msg, bool newline = false);
-template<typename T>
-void loggerln(T msg);
 
 void bootNotify() {
     if (!wifiConnected) return;
@@ -110,34 +110,27 @@ bool rebootCallback(void *) {
 }
 
 void initHTTP(WebServer* server) {
-    /*
-    webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
-        timer.in(2000, rebootCallback);
-        request->send(200, "text/plain", "Rebooting...");
+
+    server->on("/reboot", HTTPMethod::HTTP_GET, [server]() {
+        server->send(200, "text/plain", "Rebooting...");
     });
 
-    webServer.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
+    server->on("/reset", HTTPMethod::HTTP_GET, [server]() {
         loggerln("/reset");
-        configManager.clearAllSettings(false);
-        timer.in(2000, rebootCallback);
-        request->send(200, "text/plain", "Configs Cleared");
+        //configManager.clearAllSettings(false);
+        server->send(200, "text/plain", "Configs Cleared");
     });
 
-    webServer.on("/reconfig", HTTP_GET, [](AsyncWebServerRequest *request) {
+    server->on("/reconfig", HTTPMethod::HTTP_GET, [server]() {
         loggerln("/reconfig");
         configDefaults();
-        timer.in(2000, rebootCallback);
-        request->send(200, "text/plain", "Configs Set to Defaults");
+        server->send(200, "text/plain", "Configs Set to Defaults");
     });
-    */
 
     server->on("/", HTTPMethod::HTTP_GET, [server]() {
         loggerln("/");
         configManager.streamFile("/index.html", mimeHTML);
     });
-
-    logger("Ready at: http://");
-    loggerln(deviceIP());
 }
 
 

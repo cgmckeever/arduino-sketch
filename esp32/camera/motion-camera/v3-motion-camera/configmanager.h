@@ -114,5 +114,5 @@ void serveAssets(WebServer *server) {
     configManager.streamFile(mainJS, mimeJS);
   });
 
-  Serial.println("Assets Registered");
+  loggerln("Assets Registered");
 }

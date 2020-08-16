@@ -16,6 +16,7 @@
 #define VSYNC_GPIO_NUM   25
 #define HREF_GPIO_NUM    23
 #define PCLK_GPIO_NUM    22
+#define HAS_FLASH        false
 
 #elif defined(CAMERA_MODEL_ESP_EYE)
 #define PWDN_GPIO_NUM    -1
@@ -34,6 +35,7 @@
 #define VSYNC_GPIO_NUM   5
 #define HREF_GPIO_NUM    27
 #define PCLK_GPIO_NUM    25
+#define HAS_FLASH        false
 
 #elif defined(CAMERA_MODEL_M5STACK_PSRAM)
 #define PWDN_GPIO_NUM     -1
@@ -52,6 +54,7 @@
 #define VSYNC_GPIO_NUM    22
 #define HREF_GPIO_NUM     26
 #define PCLK_GPIO_NUM     21
+#define HAS_FLASH        false
 
 #elif defined(CAMERA_MODEL_M5STACK_V2_PSRAM)
 #define PWDN_GPIO_NUM     -1
@@ -70,6 +73,7 @@
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     26
 #define PCLK_GPIO_NUM     21
+#define HAS_FLASH        false
 
 #elif defined(CAMERA_MODEL_M5STACK_WIDE)
 #define PWDN_GPIO_NUM     -1
@@ -88,6 +92,7 @@
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     26
 #define PCLK_GPIO_NUM     21
+#define HAS_FLASH        false
 
 #elif defined(CAMERA_MODEL_M5STACK_ESP32CAM)
 #define PWDN_GPIO_NUM     -1
@@ -106,6 +111,7 @@
 #define VSYNC_GPIO_NUM    22
 #define HREF_GPIO_NUM     26
 #define PCLK_GPIO_NUM     21
+#define HAS_FLASH        false
 
 #elif defined(CAMERA_MODEL_AI_THINKER)
 #define PWDN_GPIO_NUM     32
@@ -124,6 +130,7 @@
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
+#define HAS_FLASH         true
 
 #elif defined(CAMERA_MODEL_TTGO_T_JOURNAL)
 #define PWDN_GPIO_NUM      0
@@ -142,6 +149,7 @@
 #define VSYNC_GPIO_NUM    22
 #define HREF_GPIO_NUM     26
 #define PCLK_GPIO_NUM     21
+#define HAS_FLASH         false
 
 #elif defined(T_Camera_V17_VERSION)
 #define PWDN_GPIO_NUM       -1
@@ -166,6 +174,7 @@
 #define SSD130_MODLE_TYPE   0   // 0 : GEOMETRY_128_64  // 1: GEOMETRY_128_32
 #define AS312_PIN           33
 #define ENABLE_IP5306
+#define HAS_FLASH           false
 
 #elif defined(T_Camera_JORNAL_VERSION)
 #define PWDN_GPIO_NUM     -1
@@ -188,6 +197,7 @@
 #define I2C_SCL           13
 #define BUTTON_1          32
 #define SSD130_MODLE_TYPE   1   // 0 : GEOMETRY_128_64  // 1: GEOMETRY_128_32
+#define HAS_FLASH        false
 
 #else
 #error "Camera model not selected"
