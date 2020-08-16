@@ -1,0 +1,356 @@
+<html>
+<head>
+<meta name='viewport'         content='width=device-width,         initial-scale=1.0,         user-scalable=no' />
+<title>Pan and Tilt ESP32-CAM</title>
+<style>
+#container {
+     width: 100%;
+     height: 49vh;
+     background-color: #333;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     overflow: hidden;
+     border-radius: 7px;
+     touch-action: none;
+}
+ #item {
+     width: 100px;
+     height: 100px;
+     background-color: rgb(245, 230, 99);
+     border: 10px solid rgba(136, 136, 136, .5);
+     border-radius: 50%;
+     touch-action: none;
+     user-select: none;
+}
+ #item:active {
+     background-color: rgba(168, 218, 220, 1.00);
+}
+ #item:hover {
+     cursor: pointer;
+     border-width: 20px;
+}
+ #area {
+     position: fixed;
+     right: 0;
+     top: 0;
+}
+
+figure{
+     height: 49vh;
+     padding:0;
+     margin:0;
+     -webkit-margin-before:0;
+     margin-block-start:0;
+     -webkit-margin-after:0;
+     margin-block-end:0;
+     -webkit-margin-start:0;
+     margin-inline-start:0;
+     -webkit-margin-end:0;
+     margin-inline-end:0
+}
+figure img{
+     display:block;
+     width:auto;
+     height:49vh;
+     border-radius:4px;
+     margin-top:8px
+}
+
+</style>
+</head>
+<body>
+<input type='textarea' id='area' disabled />
+<div id='outerContainer'>
+  <div id='container'>
+    <div id='item'> </div>
+  </div>
+  <figure style="height:49vh">
+    <div id="stream-container" class="image-container"> <img id="stream" src=""> </div>
+  </figure>
+</div>
+<script>
+const view = document.getElementById('stream');
+//const WS_URL = "ws://192.168.1.12:82";
+const WS_URL = "ws://192.168.1.10/stream";
+const ws = new WebSocket(WS_URL);
+
+ws.onmessage = message => {
+    if (message.data instanceof Blob) {
+      var urlObject = URL.createObjectURL(message.data);
+      view.src = urlObject;
+    }
+};
+
+var dragItem = document.querySelector('#item');
+var container = document.querySelector('#container');
+var containerWidth = container.offsetWidth;
+var containerHeight = container.offsetHeight;
+var maxDragHorizontal = containerWidth / 2;
+var maxDragVertical = containerHeight / 2;
+document.getElementById('area').value = 'width: ' + maxDragHorizontal + ' height: ' + maxDragVertical;
+var active = false;
+var currentX;
+var currentY;
+var initialX;
+var initialY;
+var xOffset = 0;
+var yOffset = 0;
+var lastText, lastSend, sendTimeout;
+container.addEventListener('touchstart', dragStart, false);
+container.addEventListener('touchend', dragEnd, false);
+container.addEventListener('touchmove', drag, false);
+container.addEventListener('mousedown', dragStart, false);
+container.addEventListener('mouseup', dragEnd, false);
+container.addEventListener('mousemove', drag, false);
+
+function dragStart(e) {
+    if (e.type === 'touchstart') {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+    } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+    }
+    if (e.target === dragItem) {
+        active = true;
+    }
+}
+
+function dragEnd(e) {
+    initialX = currentX;
+    initialY = currentY;
+    active = false;
+}
+
+function drag(e) {
+    if (active) {
+        e.preventDefault();
+        if (e.type === 'touchmove') {
+            currentX = e.touches[0].clientX - initialX;
+            currentY = e.touches[0].clientY - initialY;
+        } else {
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+        }
+        xOffset = currentX;
+        yOffset = currentY;
+        if (Math.abs(currentY) < maxDragVertical && Math.abs(currentX) < maxDragHorizontal) {
+            setTranslate(currentX, currentY, dragItem);
+        }
+        document.getElementById('area').value = 'X: ' + currentX + ' Y: ' + currentY;
+    }
+}
+
+// limit sending to one message every 30 ms
+// https://github.com/neonious/lowjs_esp32_examples/blob/master/neonious_one/cellphone_controlled_rc_car/www/index.html
+function send(txt) {
+    var now = new Date().getTime();
+    if(lastSend === undefined || now - lastSend >= 30) {
+        try {
+            ws.send(txt);
+            lastSend = new Date().getTime();
+            return;
+        } catch(e) {
+            console.log(e);
+        }
+    }
+    lastText = txt;
+    if(!sendTimeout) {
+        var ms = lastSend !== undefined ? 30 - (now - lastSend) : 30;
+        if(ms < 0)
+            ms = 0;
+        sendTimeout = setTimeout(() => {
+            sendTimeout = null;
+            send(lastText);
+        }, ms);
+    }
+}
+
+function setTranslate(xPos, yPos, el) {
+    el.style.transform = 'translate3d(' + xPos + 'px, ' + yPos + 'px, 0)';
+    var panDegrees = xPos * 90 / maxDragHorizontal;
+    var tiltDegrees = yPos * 90 / maxDragVertical;
+    send(panDegrees + ',' + tiltDegrees);
+}
+</script>
+</body>
+</html>
+RAW Paste Data
+<html>
+<head>
+<meta name='viewport'         content='width=device-width,         initial-scale=1.0,         user-scalable=no' />
+<title>Pan and Tilt ESP32-CAM</title>
+<style>
+#container {
+     width: 100%;
+     height: 49vh;
+     background-color: #333;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     overflow: hidden;
+     border-radius: 7px;
+     touch-action: none;
+}
+ #item {
+     width: 100px;
+     height: 100px;
+     background-color: rgb(245, 230, 99);
+     border: 10px solid rgba(136, 136, 136, .5);
+     border-radius: 50%;
+     touch-action: none;
+     user-select: none;
+}
+ #item:active {
+     background-color: rgba(168, 218, 220, 1.00);
+}
+ #item:hover {
+     cursor: pointer;
+     border-width: 20px;
+}
+ #area {
+     position: fixed;
+     right: 0;
+     top: 0;
+}
+
+figure{
+     height: 49vh;
+     padding:0;
+     margin:0;
+     -webkit-margin-before:0;
+     margin-block-start:0;
+     -webkit-margin-after:0;
+     margin-block-end:0;
+     -webkit-margin-start:0;
+     margin-inline-start:0;
+     -webkit-margin-end:0;
+     margin-inline-end:0
+}
+figure img{
+     display:block;
+     width:auto;
+     height:49vh;
+     border-radius:4px;
+     margin-top:8px
+}
+
+</style>
+</head>
+<body>
+<input type='textarea' id='area' disabled />
+<div id='outerContainer'>
+  <div id='container'>
+    <div id='item'> </div>
+  </div>
+  <figure style="height:49vh">
+    <div id="stream-container" class="image-container"> <img id="stream" src=""> </div>
+  </figure>
+</div>
+<script>
+const view = document.getElementById('stream');
+const WS_URL = "ws://" + window.location.host + ":82";
+const ws = new WebSocket(WS_URL);
+
+ws.onmessage = message => {
+    if (message.data instanceof Blob) {
+      var urlObject = URL.createObjectURL(message.data);
+      view.src = urlObject;
+    }
+};
+
+var dragItem = document.querySelector('#item');
+var container = document.querySelector('#container');
+var containerWidth = container.offsetWidth;
+var containerHeight = container.offsetHeight;
+var maxDragHorizontal = containerWidth / 2;
+var maxDragVertical = containerHeight / 2;
+document.getElementById('area').value = 'width: ' + maxDragHorizontal + ' height: ' + maxDragVertical;
+var active = false;
+var currentX;
+var currentY;
+var initialX;
+var initialY;
+var xOffset = 0;
+var yOffset = 0;
+var lastText, lastSend, sendTimeout;
+container.addEventListener('touchstart', dragStart, false);
+container.addEventListener('touchend', dragEnd, false);
+container.addEventListener('touchmove', drag, false);
+container.addEventListener('mousedown', dragStart, false);
+container.addEventListener('mouseup', dragEnd, false);
+container.addEventListener('mousemove', drag, false);
+
+function dragStart(e) {
+    if (e.type === 'touchstart') {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+    } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+    }
+    if (e.target === dragItem) {
+        active = true;
+    }
+}
+
+function dragEnd(e) {
+    initialX = currentX;
+    initialY = currentY;
+    active = false;
+}
+
+function drag(e) {
+    if (active) {
+        e.preventDefault();
+        if (e.type === 'touchmove') {
+            currentX = e.touches[0].clientX - initialX;
+            currentY = e.touches[0].clientY - initialY;
+        } else {
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+        }
+        xOffset = currentX;
+        yOffset = currentY;
+        if (Math.abs(currentY) < maxDragVertical && Math.abs(currentX) < maxDragHorizontal) {
+            setTranslate(currentX, currentY, dragItem);
+        }
+        document.getElementById('area').value = 'X: ' + currentX + ' Y: ' + currentY;
+    }
+}
+
+// limit sending to one message every 30 ms
+// https://github.com/neonious/lowjs_esp32_examples/blob/master/neonious_one/cellphone_controlled_rc_car/www/index.html
+function send(txt) {
+    var now = new Date().getTime();
+    if(lastSend === undefined || now - lastSend >= 30) {
+        try {
+            ws.send(txt);
+            lastSend = new Date().getTime();
+            return;
+        } catch(e) {
+            console.log(e);
+        }
+    }
+    lastText = txt;
+    if(!sendTimeout) {
+        var ms = lastSend !== undefined ? 30 - (now - lastSend) : 30;
+        if(ms < 0)
+            ms = 0;
+        sendTimeout = setTimeout(() => {
+            sendTimeout = null;
+            send(lastText);
+        }, ms);
+    }
+}
+
+function setTranslate(xPos, yPos, el) {
+    el.style.transform = 'translate3d(' + xPos + 'px, ' + yPos + 'px, 0)';
+    var panDegrees = xPos * 90 / maxDragHorizontal;
+    var tiltDegrees = yPos * 90 / maxDragVertical;
+    send(panDegrees + ',' + tiltDegrees);
+}
+</script>
+</body>
+</html>

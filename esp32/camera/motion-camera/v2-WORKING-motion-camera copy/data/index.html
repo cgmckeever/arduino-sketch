@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Spy Cam</title>
+
+        <style>
+            body {
+                font-family: Arial,Helvetica,sans-serif;
+                background: #181818;
+                color: #EFEFEF;
+                font-size: 16px
+            }
+
+            section.main {
+                display: flex
+            }
+
+            #logo {
+                margin-bottom: 10px;
+            }
+
+            #nav-toggle {
+                display: block
+            }
+
+            #menu,section.main {
+                flex-direction: column
+            }
+
+            #menu {
+                display: none;
+                flex-wrap: nowrap;
+                min-width: 340px;
+                background: #363636;
+                padding: 8px;
+                border-radius: 4px;
+                margin-right: 10px;
+            }
+
+            #menu.show {
+                display: flex
+            }
+
+            #content {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: stretch
+            }
+
+            figure {
+                padding: 0px;
+                margin: 0;
+                -webkit-margin-before: 0;
+                margin-block-start: 0;
+                -webkit-margin-after: 0;
+                margin-block-end: 0;
+                -webkit-margin-start: 0;
+                margin-inline-start: 0;
+                -webkit-margin-end: 0;
+                margin-inline-end: 0
+            }
+
+            figure img {
+                display: block;
+                width: 100%;
+                height: auto;
+                border-radius: 4px;
+            }
+
+            @media (min-width: 800px) and (orientation:landscape) {
+                #content {
+                    display:flex;
+                    flex-wrap: nowrap;
+                    align-items: stretch
+                }
+
+                figure img {
+                    display: block;
+                    max-width: 100%;
+                    max-height: calc(100vh - 40px);
+                    width: auto;
+                    height: auto
+                }
+
+                figure {
+                    padding: 0 0 0 0px;
+                    margin: 0;
+                    -webkit-margin-before: 0;
+                    margin-block-start: 0;
+                    -webkit-margin-after: 0;
+                    margin-block-end: 0;
+                    -webkit-margin-start: 0;
+                    margin-inline-start: 0;
+                    -webkit-margin-end: 0;
+                    margin-inline-end: 0
+                }
+            }
+
+            section#buttons {
+                display: flex;
+                flex-wrap: nowrap;
+                justify-content: space-between
+            }
+
+            button {
+                display: block;
+                margin: 5px;
+                padding: 0 12px;
+                border: 0;
+                line-height: 28px;
+                cursor: pointer;
+                color: #fff;
+                background: #ff3034;
+                border-radius: 5px;
+                font-size: 16px;
+                outline: 0
+            }
+
+            button:hover {
+                background: #ff494d
+            }
+
+            button:active {
+                background: #f21c21
+            }
+
+            button.disabled {
+                cursor: default;
+                background: #a0a0a0
+            }
+
+            .image-container {
+                position: relative;
+                min-width: 160px
+            }
+
+            .close {
+                position: absolute;
+                right: 5px;
+                top: 5px;
+                background: #ff3034;
+                width: 16px;
+                height: 16px;
+                border-radius: 100px;
+                color: #fff;
+                text-align: center;
+                line-height: 18px;
+                cursor: pointer
+            }
+
+            .input-group {
+                display: flex;
+                flex-wrap: nowrap;
+                line-height: 22px;
+                margin: 5px 0
+            }
+
+            .input-group>label {
+                display: inline-block;
+                padding-right: 10px;
+                min-width: 47%
+            }
+
+            .input-group input,.input-group select {
+                flex-grow: 1
+            }
+
+            .range-max,.range-min {
+                display: inline-block;
+                padding: 0 5px
+            }
+
+            input[type=range] {
+                -webkit-appearance: none;
+                width: 100%;
+                height: 22px;
+                background: #363636;
+                cursor: pointer;
+                margin: 0
+            }
+
+            input[type=range]:focus {
+                outline: 0
+            }
+
+            input[type=range]::-webkit-slider-runnable-track {
+                width: 100%;
+                height: 2px;
+                cursor: pointer;
+                background: #EFEFEF;
+                border-radius: 0;
+                border: 0 solid #EFEFEF
+            }
+
+            input[type=range]::-webkit-slider-thumb {
+                border: 1px solid rgba(0,0,30,0);
+                height: 22px;
+                width: 22px;
+                border-radius: 50px;
+                background: #ff3034;
+                cursor: pointer;
+                -webkit-appearance: none;
+                margin-top: -11.5px
+            }
+
+            input[type=range]:focus::-webkit-slider-runnable-track {
+                background: #EFEFEF
+            }
+
+            input[type=range]::-moz-range-track {
+                width: 100%;
+                height: 2px;
+                cursor: pointer;
+                background: #EFEFEF;
+                border-radius: 0;
+                border: 0 solid #EFEFEF
+            }
+
+            input[type=range]::-moz-range-thumb {
+                border: 1px solid rgba(0,0,30,0);
+                height: 22px;
+                width: 22px;
+                border-radius: 50px;
+                background: #ff3034;
+                cursor: pointer
+            }
+
+            input[type=range]::-ms-track {
+                width: 100%;
+                height: 2px;
+                cursor: pointer;
+                background: 0 0;
+                border-color: transparent;
+                color: transparent
+            }
+
+            input[type=range]::-ms-fill-lower {
+                background: #EFEFEF;
+                border: 0 solid #EFEFEF;
+                border-radius: 0
+            }
+
+            input[type=range]::-ms-fill-upper {
+                background: #EFEFEF;
+                border: 0 solid #EFEFEF;
+                border-radius: 0
+            }
+
+            input[type=range]::-ms-thumb {
+                border: 1px solid rgba(0,0,30,0);
+                height: 22px;
+                width: 22px;
+                border-radius: 50px;
+                background: #ff3034;
+                cursor: pointer;
+                height: 2px
+            }
+
+            input[type=range]:focus::-ms-fill-lower {
+                background: #EFEFEF
+            }
+
+            input[type=range]:focus::-ms-fill-upper {
+                background: #363636
+            }
+
+            .switch {
+                display: block;
+                position: relative;
+                line-height: 22px;
+                font-size: 16px;
+                height: 22px
+            }
+
+            .switch input {
+                outline: 0;
+                opacity: 0;
+                width: 0;
+                height: 0
+            }
+
+            .slider {
+                width: 50px;
+                height: 22px;
+                border-radius: 22px;
+                cursor: pointer;
+                background-color: grey
+            }
+
+            .slider,.slider:before {
+                display: inline-block;
+                transition: .4s
+            }
+
+            .slider:before {
+                position: relative;
+                content: "";
+                border-radius: 50%;
+                height: 16px;
+                width: 16px;
+                left: 4px;
+                top: 3px;
+                background-color: #fff
+            }
+
+            input:checked+.slider {
+                background-color: #ff3034
+            }
+
+            input:checked+.slider:before {
+                -webkit-transform: translateX(26px);
+                transform: translateX(26px)
+            }
+
+            select {
+                border: 1px solid #363636;
+                font-size: 14px;
+                height: 22px;
+                outline: 0;
+                border-radius: 5px
+            }
+
+            .hidden {
+                display: none
+            }
+        </style>
+    </head>
+    <body>
+        <section class="main">
+            <div id="logo">
+                <label for="nav-toggle-cb" id="nav-toggle">☰&nbsp;&nbsp;SpyCam</label>
+            </div>
+            <div id="content">
+                <div id="sidebar">
+                    <nav id="menu" class="show">
+                        <section id="buttons">
+                            <button id="still-button">Get Still</button>
+                            <button id="stream-button">Start Stream</button>
+                        </section>
+                        <div class="input-group" id="framesize-group">
+                            <label for="framesize">Capture Resolution</label>
+                            <select id="captureFramesize" class="config">
+                                <option value="10">UXGA(1600x1200)</option>
+                                <option value="9">SXGA(1280x1024)</option>
+                                <option value="8">XGA(1024x768)</option>
+                                <option value="7">SVGA(800x600)</option>
+                                <option value="6">VGA(640x480)</option>
+                                <option value="5" selected="selected">CIF(400x296)</option>
+                                <option value="4">QVGA(320x240)</option>
+                                <option value="3">HQVGA(240x176)</option>
+                                <option value="0">QQVGA(160x120)</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="framesize-group">
+                            <label for="framesize">Stream Resolution</label>
+                            <select id="streamFramesize" class="config">
+                                <option value="6">VGA(640x480)</option>
+                                <option value="5" selected="selected">CIF(400x296)</option>
+                                <option value="4">QVGA(320x240)</option>
+                                <option value="3">HQVGA(240x176)</option>
+                                <option value="0">QQVGA(160x120)</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="quality-group">
+                            <label for="quality">Quality</label>
+                            <div class="range-min">10</div>
+                            <input type="range" id="quality" min="10" max="63" value="10" class="camera-param">
+                            <div class="range-max">63</div>
+                        </div>
+                        <div class="input-group" id="brightness-group">
+                            <label for="brightness">Brightness</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="brightness" min="-2" max="2" value="0" class="camera-param">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="contrast-group">
+                            <label for="contrast">Contrast</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="contrast" min="-2" max="2" value="0" class="camera-param">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="saturation-group">
+                            <label for="saturation">Saturation</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="saturation" min="-2" max="2" value="0" class="camera-param">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="special_effect-group">
+                            <label for="special_effect">Special Effect</label>
+                            <select id="special_effect" class="camera-param">
+                                <option value="0" selected="selected">No Effect</option>
+                                <option value="1">Negative</option>
+                                <option value="2">Grayscale</option>
+                                <option value="3">Red Tint</option>
+                                <option value="4">Green Tint</option>
+                                <option value="5">Blue Tint</option>
+                                <option value="6">Sepia</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="awb-group">
+                            <label for="awb">AWB</label>
+                            <div class="switch">
+                                <input id="awb" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="awb"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="awb_gain-group">
+                            <label for="awb_gain">AWB Gain</label>
+                            <div class="switch">
+                                <input id="awb_gain" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="awb_gain"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="wb_mode-group">
+                            <label for="wb_mode">WB Mode</label>
+                            <select id="wb_mode" class="camera-param">
+                                <option value="0" selected="selected">Auto</option>
+                                <option value="1">Sunny</option>
+                                <option value="2">Cloudy</option>
+                                <option value="3">Office</option>
+                                <option value="4">Home</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="aec-group">
+                            <label for="aec">AEC SENSOR</label>
+                            <div class="switch">
+                                <input id="aec" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="aec"></label>
+                            </div>
+                        </div>
+                        <div class="input-group hidden" id="aec_value-group">
+                            <label for="aec_value">Exposure</label>
+                            <div class="range-min">0</div>
+                            <input type="range" id="aec_value" min="0" max="1200" value="204" class="camera-param">
+                            <div class="range-max">1200</div>
+                        </div>
+                        <div class="input-group" id="aec2-group">
+                            <label for="aec2">AEC DSP</label>
+                            <div class="switch">
+                                <input id="aec2" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="aec2"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="ae_level-group">
+                            <label for="ae_level">AE Level</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="ae_level" min="-2" max="2" value="0" class="camera-param">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="agc-group">
+                            <label for="agc">AGC</label>
+                            <div class="switch">
+                                <input id="agc" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="agc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group hidden" id="agc_gain-group">
+                            <label for="agc_gain">Gain</label>
+                            <div class="range-min">1x</div>
+                            <input type="range" id="agc_gain" min="0" max="30" value="5" class="camera-param">
+                            <div class="range-max">31x</div>
+                        </div>
+                        <div class="input-group" id="gainceiling-group">
+                            <label for="gainceiling">Gain Ceiling</label>
+                            <div class="range-min">2x</div>
+                            <input type="range" id="gainceiling" min="0" max="6" value="0" class="camera-param">
+                            <div class="range-max">128x</div>
+                        </div>
+                        <div class="input-group" id="bpc-group">
+                            <label for="bpc">BPC</label>
+                            <div class="switch">
+                                <input id="bpc" type="checkbox" class="camera-param">
+                                <label class="slider" for="bpc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="wpc-group">
+                            <label for="wpc">WPC</label>
+                            <div class="switch">
+                                <input id="wpc" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="wpc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="raw_gma-group">
+                            <label for="raw_gma">Raw GMA</label>
+                            <div class="switch">
+                                <input id="raw_gma" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="raw_gma"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="lenc-group">
+                            <label for="lenc">Lens Correction</label>
+                            <div class="switch">
+                                <input id="lenc" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="lenc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="hmirror-group">
+                            <label for="hmirror">H-Mirror</label>
+                            <div class="switch">
+                                <input id="hmirror" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="hmirror"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="vflip-group">
+                            <label for="vflip">V-Flip</label>
+                            <div class="switch">
+                                <input id="vflip" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="vflip"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="dcw-group">
+                            <label for="dcw">DCW (Downsize EN)</label>
+                            <div class="switch">
+                                <input id="dcw" type="checkbox" class="camera-param" checked="checked">
+                                <label class="slider" for="dcw"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="colorbar-group">
+                            <label for="colorbar">Color Bar</label>
+                            <div class="switch">
+                                <input id="colorbar" type="checkbox" class="camera-param">
+                                <label class="slider" for="colorbar"></label>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+                <figure>
+                    <div id="image-container" class="image-container">
+                        <div class="close" id="close-image">×</div>
+                        <img id="image-content" src="">
+                    </div>
+                </figure>
+            </div>
+        </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function (event) {
+            //const hostName = "192.168.1.10"
+            const hostName = window.location.hostname
+            const baseHost = "http://" + hostName
+            const streamURL = "ws://" + hostName + "/stream"
+            const logURL = "ws://" + hostName + "/log"
+
+            const closeButton = document.getElementById('close-image')
+            const viewContainer = document.getElementById('image-container')
+            const viewContent = document.getElementById('image-content')
+
+            const streamButton = document.getElementById('stream-button')
+            const stillButton = document.getElementById('still-button')
+
+            var ws
+            var isStreaming = false
+            const logSocket = new WebSocket(logURL)
+
+            logSocket.onmessage = message => { console.log(message.data) }
+
+            const hide = el => { el.classList.add('hidden') }
+            const show = el => { el.classList.remove('hidden') }
+
+            const startStream = () => {
+                ws = new WebSocket(streamURL)
+                isStreaming = true;
+                ws.onmessage = message => {
+                    if (message.data instanceof Blob) {
+                      var urlObject = URL.createObjectURL(message.data)
+                      viewContent.src = urlObject;
+                }};
+                show(viewContainer)
+                streamButton.innerHTML = 'Stop Stream'
+            }
+
+            const stopStream = () => {
+                // window.stop();
+                if (isStreaming) ws.close();
+                streamButton.innerHTML = 'Start Stream'
+                hide(viewContainer)
+            }
+
+            streamButton.onclick = () => {
+                if (streamButton.innerHTML === 'Stop Stream') {
+                    stopStream()
+                } else {
+                    startStream()
+                }
+            }
+
+            closeButton.onclick = () => {
+                stopStream()
+            }
+
+            const getStill = () => {
+                stopStream()
+                viewContent.src = `${baseHost}/capture?_cb=${Date.now()}`
+                show(viewContainer)
+            }
+
+            stillButton.onclick = () => {
+                getStill()
+            }
+
+            hide(viewContainer)
+
+            // Inputs
+            document
+                .querySelectorAll('.camera-param')
+                .forEach(el => {
+                    el.onchange = () => updateConfig(el)
+                })
+
+            document
+                .querySelectorAll('.config')
+                .forEach(el => {
+                    el.onchange = () => updateConfig(el)
+                })
+
+
+            const wb = document.getElementById('wb_mode-group')
+            const awb = document.getElementById('awb_gain')
+            awb.onchange = () => {
+                updateConfig(awb)
+                awb.checked ? show(wb) : hide(wb)
+            }
+
+            const exposure = document.getElementById('aec_value-group')
+            const aec = document.getElementById('aec')
+            aec.onchange = () => {
+                updateConfig(aec)
+                aec.checked ? hide(exposure) : show(exposure)
+            }
+
+            const agcGain = document.getElementById('agc_gain-group')
+            const gainCeiling = document.getElementById('gainceiling-group')
+            const agc = document.getElementById('agc')
+            agc.onchange = () => {
+                updateConfig(agc)
+                if (agc.checked) {
+                  show(gainCeiling)
+                  hide(agcGain)
+                } else {
+                  hide(gainCeiling)
+                  show(agcGain)
+                }
+            }
+
+            fetch(`${baseHost}/config`)
+                .then(function (response) {
+                    return response.json()
+                })
+                .then(function (config) {
+                    document
+                        .querySelectorAll('.camera-param')
+                        .forEach(el => {
+                            updateValue(el, config["camera"][el.id], false)
+                        })
+                    document
+                        .querySelectorAll('.config')
+                        .forEach(el => {
+                            updateValue(el, config["config"][el.id], false)
+                        })
+                })
+
+            const updateValue = (el, value, updateRemote) => {
+                updateRemote = updateRemote == null ? true : updateRemote
+                let initialValue
+                if (el.type === 'checkbox') {
+                  initialValue = el.checked
+                  value = !!value
+                  el.checked = value
+                } else {
+                  initialValue = el.value
+                  el.value = value
+                }
+
+                if(!updateRemote) {
+                    if(el.id === "aec"){
+                        value ? hide(exposure) : show(exposure)
+                    } else if(el.id === "agc") {
+                        if (value) {
+                            show(gainCeiling)
+                            hide(agcGain)
+                        } else {
+                            hide(gainCeiling)
+                            show(agcGain)
+                        }
+                    } else if(el.id === "awb_gain") {
+                        value ? show(wb) : hide(wb)
+                    }
+                } else if(initialValue !== value) {
+                    updateConfig(el);
+                }
+            }
+
+            function updateConfig (el) {
+                console.log("Update");
+                let value
+                switch (el.type) {
+                  case 'checkbox':
+                    value = el.checked ? 1 : 0
+                    break
+                  case 'range':
+                  case 'select-one':
+                    value = el.value
+                    break
+                  case 'button':
+                  case 'submit':
+                    value = '1'
+                    break
+                  default:
+                    return
+                }
+
+                var params = {};
+                params[el.id] = value
+
+                var key = el.classList.contains("camera-param") ? "camera" : "config";
+                var config = {};
+                config[key] = params
+
+                fetch(`${baseHost}/config`, {
+                    method: 'PUT',
+                    body: JSON.stringify(config),
+                    headers: { "Content-type" : "application/json" },
+                }).then(response => console.log(response))
+            }
+
+        })
+
+    </script>
+    </body>
+</html>
