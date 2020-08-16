@@ -109,8 +109,8 @@ bool rebootCallback(void *) {
     return false;
 }
 
-/*
-void initHTTP(int port=80) {
+void initHTTP(WebServer* server) {
+    /*
     webServer.on("/reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
         timer.in(2000, rebootCallback);
         request->send(200, "text/plain", "Rebooting...");
@@ -129,20 +129,16 @@ void initHTTP(int port=80) {
         timer.in(2000, rebootCallback);
         request->send(200, "text/plain", "Configs Set to Defaults");
     });
+    */
 
-    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    server->on("/", HTTPMethod::HTTP_GET, [server]() {
         loggerln("/");
-        request->send(SPIFFS, "/index.html", "text/html");
+        configManager.streamFile("/index.html", mimeHTML);
     });
 
     logger("Ready at: http://");
-    logger(deviceIP());
-    logger(":");
-    loggerln(port);
-
-    SPIFFS.begin();
+    loggerln(deviceIP());
 }
-*/
 
 
 template<typename T>

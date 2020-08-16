@@ -69,7 +69,8 @@ void loop() {
     */
 
     // delay the main loop
-    vTaskDelay(1000);
+    //vTaskDelay(1000);
+    configManager.loop();
 }
 
 /*

@@ -9,7 +9,7 @@ https://github.com/arkhipenko/esp32-cam-mjpeg-multiclient
 const int TICKRATE = 75;
 
 // We will handle web client requests every 50 ms (20 Hz)
-const int WSINTERVAL = 5000;
+const int WSINTERVAL = 500;
 
 // current buffer and size
 volatile char* camBuf;
@@ -43,7 +43,7 @@ QueueHandle_t streamingClients;
 
 // ======== Server Connection Handler Task ==========================
 void mainHandler(void* pvParameters) {
-  TickType_t xLastWakeTime;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(WSINTERVAL);
 
   // Creating frame synchronization semaphore and initializing it
@@ -59,11 +59,8 @@ void mainHandler(void* pvParameters) {
   //  Creating task to push the stream to all connected clients
   xTaskCreatePinnedToCore(stream, "streamTask", 4096, NULL, 2, &taskStream, cpu1);
 
-  //=== loop() section  ===================
-  xLastWakeTime = xTaskGetTickCount();
-
   for (;;) {
-    configManager.loop();
+    //configManager.loop();
 
     // After every server client handling request
     // let other tasks run and then pause
