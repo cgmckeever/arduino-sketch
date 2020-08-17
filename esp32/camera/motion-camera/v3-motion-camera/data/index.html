@@ -540,7 +540,8 @@
         document.addEventListener('DOMContentLoaded', function (event) {
             //const hostName = "192.168.1.10"
             const hostName = window.location.hostname
-            const baseHost = "http://" + hostName
+            const port = window.location.port
+            const baseHost = "http://" + hostName + ":" + port
             const streamURL = baseHost + "/stream"
             const captureURL = baseHost + "/capture?_ts="
 
