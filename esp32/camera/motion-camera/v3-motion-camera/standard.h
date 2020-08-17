@@ -136,6 +136,10 @@ void initHTTP(WebServer* server) {
         loggerln("/");
         configManager.streamFile("/index.html", mimeHTML);
     });
+
+    server->on("/favicon.ico", HTTPMethod::HTTP_GET, [server]() {
+        server->send(200);
+    });
 }
 
 

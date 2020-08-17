@@ -42,6 +42,8 @@ void setup(void) {
 
     configSetup();
     //configDefaults();
+    config.streamFramesize = 3;
+    configManager.save();
 
     if (wifiConnected) {
         timeClient.begin();
