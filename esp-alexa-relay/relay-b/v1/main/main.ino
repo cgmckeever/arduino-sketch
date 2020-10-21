@@ -6,8 +6,9 @@
 String deviceName = DEVICENAME;
 byte mac[6];
 
+//void deviceHandler(uint8_t brightness);
+void deviceHandler(EspalexaDevice* dev);
 Espalexa espalexa;
-void deviceHandler(uint8_t brightness);
 
 Timer<1, millis, void *> timer;
 
@@ -54,13 +55,33 @@ boolean connectWifi() {
 void espDevice() {
   log("Adding Alexa device as " + deviceName);
 
-  espalexa.addDevice(deviceName, deviceHandler);
+  //espalexa.addDevice(deviceName, deviceHandler);
+  espalexa.addDevice(deviceName, deviceHandler, EspalexaDeviceType::color);
   espalexa.begin();
 
   log("ESP Device Setup Complete");
 }
 
-void deviceHandler(uint8_t brightness) {
+void deviceHandler(EspalexaDevice* d) {
+  Serial.begin(115200);
+  switch(d->getColorMode())
+  {
+    case EspalexaColorMode::hs:
+      Serial.print("hs, "); Serial.print("hue "); Serial.print(d->getHue()); Serial.print(", sat "); Serial.println(d->getSat()); break;
+    case EspalexaColorMode::xy:
+      Serial.print("xy, "); Serial.print("x "); Serial.print(d->getX()); Serial.print(", y "); Serial.println(d->getY()); break;
+    case EspalexaColorMode::ct:
+      Serial.print("ct, "); Serial.print("ct "); Serial.println(d->getCt()); break;
+    case EspalexaColorMode::none:
+      Serial.println("none"); break;
+  }
+  Serial.flush();
+  Serial.end();
+
+  String msg = String(d->getValue());
+  log(msg);
+
+  uint8_t brightness = d->getValue();
   if (brightness > 0) {
     relayOn(brightness);
 
