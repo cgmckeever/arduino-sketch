@@ -2,7 +2,9 @@
 #include <ConfigManager.h>
 ConfigManager configManager;
 bool wifiConnected = false;
-void APCallback(WebServer *server);
+
+void apModeCallback(WebServer* server);
+void stationModeCallback(WebServer* server);
 
 /* == Brownout Handler ==*/
 #include "soc/soc.h"
@@ -25,9 +27,6 @@ struct Config {
     bool sendAlerts;
 
     int streamFramesize;
-    int streamQueueMax;
-    int streamSizeQueued;
-    int streamWaitMin;
 
     int camera_xclk_freq_hz;
     int camera_exposure;
@@ -44,14 +43,6 @@ bool stringEmpty(char* checkString) {
   return (firstChar == '\0' || checkString == NULL || firstChar == '\xFF');
 }
 
-int setStreamQueue() {
-  return config.streamFramesize > config.streamSizeQueued ? 1 : config.streamQueueMax;
-}
-
-int setStreamWait() {
-  return config.streamFramesize > config.streamSizeQueued ? 1000 : config.streamWaitMin;
-}
-
 void configDefaults() {
   Serial.println("config defaults set");
 
@@ -63,9 +54,6 @@ void configDefaults() {
   config.sendAlerts = true;
 
   config.streamFramesize = 3;
-  config.streamSizeQueued = 3;
-  config.streamQueueMax = 2;
-  config.streamWaitMin = 200;
 
   config.camera_xclk_freq_hz = 20000000;
   config.camera_exposure = 600;
@@ -85,9 +73,6 @@ void configSetup() {
     configManager.addParameter("sendAlerts", &config.sendAlerts);
 
     configManager.addParameter("streamFramesize", &config.streamFramesize);
-    configManager.addParameter("streamQueueMax", &config.streamQueueMax);
-    configManager.addParameter("streamSizeQueued", &config.streamSizeQueued);
-    configManager.addParameter("streamWaitMin", &config.streamWaitMin);
 
     // Camera Settings
     configManager.addParameter("cameraFreq", &config.camera_xclk_freq_hz);
@@ -99,8 +84,10 @@ void configSetup() {
     configManager.addParameter("cameraRawGMA", &config.camera_raw_gma);
 
     configManager.setInitCallback(configDefaults);
-    configManager.setAPCallback(APCallback);
+    configManager.setAPCallback(stationModeCallback);
+    configManager.setAPICallback(stationModeCallback);
     configManager.setAPFilename("/wifiConfig.html");
+    configManager.setWifiConfigURI("/wifi");
 
     configManager.setAPName("Spy-Cam-v2");
 
@@ -125,9 +112,5 @@ void serveAssets(WebServer *server) {
     configManager.streamFile(mainJS, mimeJS);
   });
 
-  Serial.println("Assets Registered");
-}
-
-void APCallback(WebServer *server) {
-    serveAssets(server);
+  loggerln("Assets Registered");
 }
