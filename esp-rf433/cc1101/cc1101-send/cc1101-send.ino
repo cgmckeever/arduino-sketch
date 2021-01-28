@@ -11,6 +11,7 @@
 #include <RCSwitch.h>
 
 int pin; // int for Transmit pin.
+int wait = 10000;
 
 RCSwitch mySwitch = RCSwitch();
 
@@ -55,23 +56,23 @@ pin = 6;  // for Arduino! Transmit on pin 6.
 
 void loop() {
 
-  mySwitch.send(19073044, 26);
-  delay(5000);
+  //mySwitch.send(19073044, 26);
+  delay(wait);
 
   mySwitch.send(19075092, 26);
-  delay(5000);
+  delay(wait);
 
   mySwitch.send(19077140, 26);
-  delay(10000);
+  delay(wait);
 
   mySwitch.send(35850260, 26);
-  delay(5000);
+  delay(wait);
 
   mySwitch.send(35854356, 26);
-  delay(5000);
+  delay(wait);
 
   mySwitch.send(35852308, 26);
-  delay(10000);
+  delay(wait);
 
   
 
