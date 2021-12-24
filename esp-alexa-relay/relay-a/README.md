@@ -77,6 +77,11 @@ Serial.end();
 - Built-in web based configuration and relay-control
 - Requires [ConfigManager](https://github.com/nrwiersma/ConfigManager)
 
+## V3
+
+- Only rely on HTTP requests
+- No more Faux Amazon Devices
+
 
 
 
