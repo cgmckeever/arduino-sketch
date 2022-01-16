@@ -3,9 +3,7 @@
 
 ConfigManager configManager;
 Timer<1, millis, void *> timer0;
-Timer<1, millis, void *> timer1;
-Timer<1, millis, void *> timer2;
-Timer<1, millis, void *> timer3;
+Timer<6, millis, void *> timer1;
 
 const char *settingsHTML = (char *)"/settings.html";
 const char *relayHTML = (char *)"/relay.html";
@@ -14,6 +12,8 @@ const char *stylesCSS = (char *)"/styles.css";
 const char *mainJS = (char *)"/main.js";
 
 const int DEVICENAMELEN = 32;
+
+bool demo = true;
 
 struct Config {
   char deviceName[DEVICENAMELEN];
@@ -76,9 +76,6 @@ void setConfigDefaults() {
   meta.flashCount = 0;
   meta.isTriggered = false;
 
-  config.ledPin = LED_BUILTIN;
-  requireSave = true;
-
   char firstChar = config.deviceName[0];
   if (firstChar == '\0' || config.deviceName == NULL || firstChar == '\xFF') {
     strncpy(config.deviceName, "fesp-muppet", DEVICENAMELEN);
@@ -87,6 +84,11 @@ void setConfigDefaults() {
 
   if (float(config.inchingDelay) < 0 || isnan(config.inchingDelay)) {
     config.inchingDelay = 1000;
+    requireSave = true;
+  }
+
+  if (config.ledPin != LED_BUILTIN) {
+    config.ledPin = LED_BUILTIN;
     requireSave = true;
   }
 
@@ -167,58 +169,58 @@ void serveAssets(WebServer *server) {
 void toggleState(bool state) {
   if (state) {
     startFlash();
-    timer0.every(10000, startFlashTask);
+    timer0.every(10000, flashTask);
   } else {
     stopFlash();
   }
 }
 
-bool startFlashTask(void *) {
-    return startFlash();
+bool flashTask(void *) {
+  startFlash();
+  if (meta.flashCount > 2) stopFlash();
+  return meta.isTriggered;
 }
 
-bool startFlash() {
+void startFlash() {
   meta.isTriggered = true;
   ++meta.flashCount;
   debug("Flash Count: ");
   debug(meta.flashCount, true);
 
   timer1.in(1000, flashTimer1);
-  timer2.in(4000, flashTimer2);
-  timer3.in(7000, flashTimer3);
-
-  if (meta.flashCount > 2) {
-    debug("Flash Stopping", true);
-    meta.flashCount = 0;
-    meta.isTriggered = false;
-  }
-  return meta.isTriggered;
+  timer1.in(4000, flashTimer2);
+  timer1.in(7000, flashTimer3);
 }
 
 bool flashTimer1(void *) {
-  // call whatever relay to trigger on/off
-  flashLed();
+  relayControl(1, relON);
+  timer1.in(500, flashOff1);
   debug("flash1", true);
   return false;
 }
 
+bool flashOff1(void *) {
+  relayControl(1, relOFF);
+  debug("Off 1", true);
+  return false;
+}
+
 bool flashTimer2(void *) {
-  // call whatever relay to trigger on/off
-  flashLed();
+  relayControl(2, relON);
+  timer1.in(500, flashOff1);
   debug("flash2", true);
   return false;
 }
 
 bool flashTimer3(void *) {
-  // call whatever relay to trigger on/off
-  flashLed();
+  relayControl(3, relON);
+  timer1.in(500, flashOff1);
   debug("flash3", true);
   return false;
 }
 
 void stopFlash() {
-  relayControl(relOFF);
-  led(HIGH);
+  debug("Flash Stopping", true);
   meta.flashCount = 0;
   meta.isTriggered = false;
   timer0.cancel();
@@ -231,7 +233,7 @@ void flashLed() {
 
 // Controls
 //
-void relayControl(const byte *state) {
+void relayControl(int8_t relayNum, const byte *state) {
   pinMode(config.ledPin, INPUT);
   Serial.begin(9600);
   Serial.write(state, sizeof(state));
@@ -240,7 +242,6 @@ void relayControl(const byte *state) {
 }
 
 void led(int state) {
-  debug("LED", true);
   pinMode(config.ledPin, OUTPUT);
   digitalWrite(config.ledPin, state);
 }
@@ -254,15 +255,19 @@ void setup() {
   delay(1000);
   flashLed();
 
-  startFlash();
-  timer0.every(10000, startFlashTask);
+  if (demo) {
+    relayControl(1, relON);
+    delay(2000);
+    relayControl(1, relOFF);
+
+    startFlash();
+    timer0.every(10000, flashTask);
+  }
 }
 
 void loop() {
   configManager.loop();
   timer0.tick();
   timer1.tick();
-  timer2.tick();
-  timer3.tick();
 }
 
