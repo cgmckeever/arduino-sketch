@@ -180,6 +180,7 @@ bool timerCallback(void *) {
 }
 
 void relay(const byte *state) {
+  // is this needed?
   pinMode(config.ledPin, INPUT);
   Serial.begin(9600);
   Serial.write(state, sizeof(state));

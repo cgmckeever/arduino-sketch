@@ -1,9 +1,28 @@
 #include <ConfigManager.h>
 #include <arduino-timer.h>
 
+// Hex relay commands
+const byte rel1OFF[] = {0xA0,0x01,0x00,0xA1};
+const byte rel1ON[] = {0xA0,0x01,0x01,0xA2};
+
+const byte rel2OFF[] = {0xA0,0x02,0x00,0xA2};
+const byte rel2ON[] = {0xA0,0x02,0x01,0xA3};
+
+const byte rel3OFF[] = {0xA0,0x03,0x00,0xA3};
+const byte rel3ON[] = {0xA0,0x03,0x01,0xA4};
+
+const byte rel4OFF[] = {0xA0,0x04,0x00,0xA4};
+const byte rel4ON[] = {0xA0,0x04,0x01,0xA5};
+
+const bool ON = true;
+const bool OFF = false;
+
+const int delayOffset = 3000;
+int relayDelay;
+
 ConfigManager configManager;
 Timer<1, millis, void *> timer0;
-Timer<6, millis, void *> timer1;
+Timer<6, millis, int8_t> timer1;
 
 const char *settingsHTML = (char *)"/settings.html";
 const char *relayHTML = (char *)"/relay.html";
@@ -12,6 +31,13 @@ const char *stylesCSS = (char *)"/styles.css";
 const char *mainJS = (char *)"/main.js";
 
 const int DEVICENAMELEN = 32;
+
+// ESP-01 == 1
+// ESP-01s == 2 (LED_BUILTIN)
+const int ledPin = LED_BUILTIN;
+
+const int relayCount = 3;
+int relayBaud;
 
 bool demo = true;
 
@@ -25,10 +51,6 @@ struct Metadata {
   bool isTriggered;
   int8_t flashCount;
 } meta;
-
-// Hex relay commands
-const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};
-const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1};
 
 template<typename T>
 void debug(T &msg, bool newline = false) {
@@ -48,7 +70,7 @@ void configSetup() {
 
   // randomSeed(*(volatile uint32_t *)0x3FF20E44);
   // String sApName = "ESPRELAY-" + String(random(111, 999));
-  String sApName = "ESPRELAY";
+  String sApName = "ZOMBIEFLASH1";
 
   configManager.setAPName(sApName.c_str());
   configManager.setAPFilename("/index.html");
@@ -87,8 +109,8 @@ void setConfigDefaults() {
     requireSave = true;
   }
 
-  if (config.ledPin != LED_BUILTIN) {
-    config.ledPin = LED_BUILTIN;
+  if (config.ledPin != ledPin) {
+    config.ledPin = ledPin;
     requireSave = true;
   }
 
@@ -169,7 +191,7 @@ void serveAssets(WebServer *server) {
 void toggleState(bool state) {
   if (state) {
     startFlash();
-    timer0.every(10000, flashTask);
+    timer0.every(relayDelay, flashTask);
   } else {
     stopFlash();
   }
@@ -187,35 +209,25 @@ void startFlash() {
   debug("Flash Count: ");
   debug(meta.flashCount, true);
 
-  timer1.in(1000, flashTimer1);
-  timer1.in(4000, flashTimer2);
-  timer1.in(7000, flashTimer3);
+  int delay = 1000;
+  for (int i = 1; i <= relayCount; i++) {
+    timer1.in(delay, flashTimer, i);
+    delay += delayOffset;
+  }
 }
 
-bool flashTimer1(void *) {
-  relayControl(1, relON);
-  timer1.in(500, flashOff1);
-  debug("flash1", true);
+bool flashTimer(int8_t relayNum) {
+  relayControl(relayNum, ON);
+  timer1.in(500, flashOff, relayNum);
+  debug("Flash: ");
+  debug(relayNum, true);
   return false;
 }
 
-bool flashOff1(void *) {
-  relayControl(1, relOFF);
-  debug("Off 1", true);
-  return false;
-}
-
-bool flashTimer2(void *) {
-  relayControl(2, relON);
-  timer1.in(500, flashOff1);
-  debug("flash2", true);
-  return false;
-}
-
-bool flashTimer3(void *) {
-  relayControl(3, relON);
-  timer1.in(500, flashOff1);
-  debug("flash3", true);
+bool flashOff(int8_t relayNum) {
+  relayControl(relayNum, OFF);
+  debug("Off: ");
+  debug(relayNum, true);
   return false;
 }
 
@@ -233,10 +245,22 @@ void flashLed() {
 
 // Controls
 //
-void relayControl(int8_t relayNum, const byte *state) {
-  pinMode(config.ledPin, INPUT);
-  Serial.begin(9600);
-  Serial.write(state, sizeof(state));
+const byte* relayCommand(int8_t relayNum, bool on) {
+    switch(relayNum) {
+        case 1:
+          return on ? rel1ON : rel1OFF;
+        case 2:
+          return on ? rel2ON : rel2OFF;
+        case 3:
+          return on ? rel3ON : rel3OFF;
+        case 4:
+          return on ? rel4ON : rel4OFF;
+    }
+}
+
+void relayControl(int8_t relayNum, bool state) {
+  Serial.begin(relayBaud);
+  Serial.write(relayCommand(relayNum, state), sizeof(relayCommand(relayNum, state)));
   Serial.flush();
   Serial.end();
 }
@@ -255,13 +279,27 @@ void setup() {
   delay(1000);
   flashLed();
 
+  switch(relayCount) {
+    case 1:
+      relayBaud = 9600;
+    case 2:
+    case 3:
+    case 4:
+      relayBaud = 115200;
+  }
+
+  relayDelay = delayOffset * relayCount + 1000;
+
   if (demo) {
-    relayControl(1, relON);
-    delay(2000);
-    relayControl(1, relOFF);
+    for (int i = 1; i <= relayCount; i++) {
+      relayControl(i, ON);
+      delay(1500);
+      relayControl(i, OFF);
+      delay(500);
+    }
 
     startFlash();
-    timer0.every(10000, flashTask);
+    timer0.every(relayDelay, flashTask);
   }
 }
 
