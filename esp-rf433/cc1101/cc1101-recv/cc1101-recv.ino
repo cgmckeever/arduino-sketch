@@ -19,14 +19,7 @@ RCSwitch mySwitch = RCSwitch();
 void setup() {
   Serial.begin(115200);
   
-
-#ifdef ESP32
-pin = 4;  // for esp32! Receiver on GPIO pin 4. 
-#elif ESP8266
-pin = 4;  // for esp8266! Receiver on pin 4 = D2.
-#else
-pin = 0;  // for Arduino! Receiver on interrupt 0 => that is pin #2
-#endif 
+  pin = 27;  // for esp32! Receiver on GPIO pin 4.
 
 
 //CC1101 Settings:                (Settings with "//" are optional!)
@@ -37,12 +30,10 @@ pin = 0;  // for Arduino! Receiver on interrupt 0 => that is pin #2
   float freq = 433.92;
   //float freq = 315;
   ELECHOUSE_cc1101.setMHZ(freq); // Here you can set your basic frequency. The lib calculates the frequency automatically (default = 433.92).The cc1101 can: 300-348 MHZ, 387-464MHZ and 779-928MHZ. Read More info from datasheet.
-  
+  ELECHOUSE_cc1101.SetRx();  // set Receive on
   mySwitch.enableReceive(pin);  // Receiver on interrupt 0 => that is pin #2
 
-  ELECHOUSE_cc1101.SetRx();  // set Receive on
-
-  Serial.print("RECV..");
+  Serial.print("receiving: ");
   Serial.println(freq);
 }
 
