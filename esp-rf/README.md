@@ -1,5 +1,9 @@
 # Install Driver
 
+## Resources
+
+- https://www.rflink.nl/wires.php
+
 ## Nano
 
 ```
