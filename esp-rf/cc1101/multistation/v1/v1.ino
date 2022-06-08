@@ -12,6 +12,8 @@ rtl_433_ESP rf(-1);
 #include <RCSwitch.h>
 RCSwitch mySwitch = RCSwitch();
 
+#define LOG_LEVEL LOG_LEVEL_VERBOSE
+
 // params
 //
 const char *settingsHTML = (char *)"/settings.html";
@@ -21,26 +23,22 @@ const char *mainJS = (char *)"/main.js";
 
 const char *controlHTML = (char *)"/control.html";
 
-const int DEVICENAMELEN = 32;
+const int deviceNameLen = 32;
+const int messageBufferLen = 512;
+const int serverURLLen = 32;
 
 struct Config {
-  char deviceName[DEVICENAMELEN];
+  char deviceName[deviceNameLen];
+  char serverURL[serverURLLen];
+  float frequency;
+  int8_t receivePin;
+  int8_t transmitPin;
 } config;
 
 struct Metadata {
 } meta;
 
-
-#define JSON_MSG_BUFFER 512
-#define LOG_LEVEL LOG_LEVEL_VERBOSE
-
-// these can become CONFIGS
-#define CC1101_FREQUENCY 433.92
-#define RF_RECEIVER_GPIO 27
-#define RF_EMITTER_GPIO 26
-const String NodeRed = "http://192.168.2.25:1880/";
-
-char messageBuffer[JSON_MSG_BUFFER];
+char messageBuffer[messageBufferLen];
 
 // ConfigManager
 //
@@ -54,7 +52,11 @@ void configSetup() {
   configManager.setWebPort(8080);
 
   // Config
-  configManager.addParameter("deviceName", config.deviceName, DEVICENAMELEN);
+  configManager.addParameter("deviceName", config.deviceName, deviceNameLen);
+  configManager.addParameter("serverURL", config.serverURL, serverURLLen);
+  configManager.addParameter("frequency", &config.frequency);
+  configManager.addParameter("receivePin", &config.receivePin);
+  configManager.addParameter("transmitPin", &config.transmitPin);
 
   // Callbacks
   configManager.setAPCallback(APCallback);
@@ -67,7 +69,28 @@ void setConfigDefaults() {
 
   char firstChar = config.deviceName[0];
   if (firstChar == '\0' || config.deviceName == NULL || firstChar == '\xFF') {
-    strncpy(config.deviceName, "rascal", DEVICENAMELEN);
+    strncpy(config.deviceName, "rascal", deviceNameLen);
+    requireSave = true;
+  }
+
+  firstChar = config.serverURL[0];
+  if (firstChar == '\0' || config.serverURL == NULL || firstChar == '\xFF') {
+    strncpy(config.serverURL, "http://192.168.2.25:1880/", serverURLLen);
+    requireSave = true;
+  }
+
+  if (float(config.frequency) < 0 || isnan(config.frequency)) {
+    config.frequency = 433.92;
+    requireSave = true;
+  }
+
+  if (int(config.receivePin) < 0) {
+    config.receivePin = 27;
+    requireSave = true;
+  }
+
+  if (int(config.transmitPin) < 0) {
+    config.transmitPin = 26;
     requireSave = true;
   }
 
@@ -130,50 +153,49 @@ void APICallback(WebServer *server) {
 //
 void rtlSetup() {
     ELECHOUSE_cc1101.Init();
-    ELECHOUSE_cc1101.setMHZ(CC1101_FREQUENCY);
-    ELECHOUSE_cc1101.SetRx(CC1101_FREQUENCY);
+    ELECHOUSE_cc1101.setMHZ(config.frequency);
+    ELECHOUSE_cc1101.SetRx(config.frequency);
 
     Log.notice(F(" " CR));
     Log.notice(F("****** RTL setup begin ******" CR));
-    rf.initReceiver(RF_RECEIVER_GPIO, CC1101_FREQUENCY);
-    rf.setCallback(rtl433Callback, messageBuffer, JSON_MSG_BUFFER);
-    rf.enableReceiver(RF_RECEIVER_GPIO);
+    Log.notice(F("Frequency: %F" CR), config.frequency);
+    rf.initReceiver(config.receivePin, config.frequency);
+    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
+    rf.enableReceiver(config.receivePin);
     Log.notice(F("****** RTL setup complete ******" CR));
 }
 
-void myswitchSetup() {
+void myswitchTransmit() {
     rf.disableReceiver();
-    mySwitch.enableTransmit(RF_EMITTER_GPIO);
+
+    ELECHOUSE_cc1101.Init();
+
+    // These vars will be built into a lookup
+    ELECHOUSE_cc1101.setMHZ(config.frequency);
+    ELECHOUSE_cc1101.SetRx(config.frequency);
+
+    mySwitch.enableTransmit(config.transmitPin);
+    mySwitch.setPulseLength(389);
+    mySwitch.send(16776961, 24);
+
+    rtlSetup();
 }
 
 void rtl433Callback(char* message) {
     Log.notice(F("Received message: %s" CR), message);
     messagePost("sensor", message);
-
-    JsonObject obj = sensorObj(message);
-    String model = obj["model"];
-    Log.notice(F("Model: %s" CR), model);
 }
 
 void messagePost(String path, char* message) {
     HTTPClient http;
     WiFiClient client;
 
-    http.begin(client, NodeRed + "/" + path);
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    String url = String(config.serverURL);
+    url.trim();
+
+    http.begin(client, url + path);
+    http.addHeader("Content-Type", "application/json");
     int httpResponseCode = http.POST(message);
-}
-
-JsonObject sensorObj(char* message) {
-    DynamicJsonDocument doc(JSON_MSG_BUFFER);
-
-    DeserializationError error = deserializeJson(doc, message);
-    if (error) {
-        Log.error(F("deserializeJson() failed: "));
-        Log.errorln(error.f_str());
-    }
-
-    return doc.as<JsonObject>();
 }
 
 // Main
