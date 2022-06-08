@@ -1,6 +1,8 @@
 #include <ConfigManager.h>
 ConfigManager configManager;
 
+#include <HTTPClient.h>
+
 #include <ArduinoLog.h>
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 
@@ -36,6 +38,7 @@ struct Metadata {
 #define CC1101_FREQUENCY 433.92
 #define RF_RECEIVER_GPIO 27
 #define RF_EMITTER_GPIO 26
+const String NodeRed = "http://192.168.2.25:1880/";
 
 char messageBuffer[JSON_MSG_BUFFER];
 
@@ -133,7 +136,7 @@ void rtlSetup() {
     Log.notice(F(" " CR));
     Log.notice(F("****** RTL setup begin ******" CR));
     rf.initReceiver(RF_RECEIVER_GPIO, CC1101_FREQUENCY);
-    rf.setCallback(rtl_433_Callback, messageBuffer, JSON_MSG_BUFFER);
+    rf.setCallback(rtl433Callback, messageBuffer, JSON_MSG_BUFFER);
     rf.enableReceiver(RF_RECEIVER_GPIO);
     Log.notice(F("****** RTL setup complete ******" CR));
 }
@@ -143,15 +146,34 @@ void myswitchSetup() {
     mySwitch.enableTransmit(RF_EMITTER_GPIO);
 }
 
-void rtl_433_Callback(char* message) {
-    DynamicJsonDocument jsonBuffer(JSON_MSG_BUFFER);
-    deserializeJson(jsonBuffer, message);
-    logJson(jsonBuffer.as<JsonObject>());
+void rtl433Callback(char* message) {
+    Log.notice(F("Received message: %s" CR), message);
+    messagePost("sensor", message);
+
+    JsonObject obj = sensorObj(message);
+    String model = obj["model"];
+    Log.notice(F("Model: %s" CR), model);
 }
 
-void logJson(JsonObject jsondata)
-{
-    Log.notice(F("Received message : %s" CR), jsondata);
+void messagePost(String path, char* message) {
+    HTTPClient http;
+    WiFiClient client;
+
+    http.begin(client, NodeRed + "/" + path);
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    int httpResponseCode = http.POST(message);
+}
+
+JsonObject sensorObj(char* message) {
+    DynamicJsonDocument doc(JSON_MSG_BUFFER);
+
+    DeserializationError error = deserializeJson(doc, message);
+    if (error) {
+        Log.error(F("deserializeJson() failed: "));
+        Log.errorln(error.f_str());
+    }
+
+    return doc.as<JsonObject>();
 }
 
 // Main
