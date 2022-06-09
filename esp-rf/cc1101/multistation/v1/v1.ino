@@ -12,7 +12,7 @@ rtl_433_ESP rf(-1);
 #include <RCSwitch.h>
 RCSwitch mySwitch = RCSwitch();
 
-#define LOG_LEVEL LOG_LEVEL_VERBOSE
+#define logLevel LOG_LEVEL_VERBOSE
 
 // params
 //
@@ -143,6 +143,13 @@ void APICallback(WebServer *server) {
 
   server->on("/control", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(controlHTML, mimeHTML);
+
+    float freq = server->arg("freq").toFloat();
+    int pulse = server->arg("pulse").toInt();
+    int decimal = server->arg("decimal").toInt();
+    int bits = server->arg("bits").toInt();
+
+    switchTransmit(freq, pulse, decimal, bits);
   });
 
   setConfigDefaults();
@@ -152,33 +159,40 @@ void APICallback(WebServer *server) {
 // RTL
 //
 void rtlSetup() {
-    ELECHOUSE_cc1101.Init();
-    ELECHOUSE_cc1101.setMHZ(config.frequency);
-    ELECHOUSE_cc1101.SetRx(config.frequency);
-
     Log.notice(F(" " CR));
     Log.notice(F("****** RTL setup begin ******" CR));
     Log.notice(F("Frequency: %F" CR), config.frequency);
     rf.initReceiver(config.receivePin, config.frequency);
+    enableRx();
     rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
-    rf.enableReceiver(config.receivePin);
     Log.notice(F("****** RTL setup complete ******" CR));
 }
 
-void myswitchTransmit() {
-    rf.disableReceiver();
-
-    ELECHOUSE_cc1101.Init();
-
-    // These vars will be built into a lookup
-    ELECHOUSE_cc1101.setMHZ(config.frequency);
+void enableRx() {
+    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
     ELECHOUSE_cc1101.SetRx(config.frequency);
+    //ELECHOUSE_cc1101.setMHZ(config.frequency);
+    rf.enableReceiver(config.receivePin);
+}
+
+void switchTransmit(float freq, int pulse, int decimal, int bits) {
+    Log.notice(F("Sending:" CR));
+    Log.notice(F("  freq: %F" CR), freq);
+    Log.notice(F("  pulse: %d" CR), pulse);
+    Log.notice(F("  decimal: %d" CR), decimal);
+    Log.notice(F("  bits %d" CR), bits);
+
+    rf.disableReceiver();
+    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+    //ELECHOUSE_cc1101.setMHZ(freq);
+    ELECHOUSE_cc1101.SetTx(freq);
 
     mySwitch.enableTransmit(config.transmitPin);
-    mySwitch.setPulseLength(389);
-    mySwitch.send(16776961, 24);
+    mySwitch.setPulseLength(pulse);
+    mySwitch.send(decimal, bits);
+    mySwitch.disableTransmit();
 
-    rtlSetup();
+    enableRx();
 }
 
 void rtl433Callback(char* message) {
@@ -202,8 +216,9 @@ void messagePost(String path, char* message) {
 //
 void setup() {
     Serial.begin(115200);
-    Log.begin(LOG_LEVEL, &Serial);
+    Log.begin(logLevel, &Serial);
 
+    ELECHOUSE_cc1101.Init();
     configSetup();
     rtlSetup();
 }
