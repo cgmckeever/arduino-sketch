@@ -164,15 +164,22 @@ void rtlSetup() {
     Log.notice(F("Frequency: %F" CR), config.frequency);
     rf.initReceiver(config.receivePin, config.frequency);
     enableRx();
-    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
     Log.notice(F("****** RTL setup complete ******" CR));
 }
 
 void enableRx() {
+    ELECHOUSE_cc1101.Init();
     ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
     ELECHOUSE_cc1101.SetRx(config.frequency);
-    //ELECHOUSE_cc1101.setMHZ(config.frequency);
+    ELECHOUSE_cc1101.setMHZ(config.frequency);
+
+    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
     rf.enableReceiver(config.receivePin);
+}
+
+void disableRX() {
+    rf.enableReceiver(-1);
+    rf.disableReceiver();
 }
 
 void switchTransmit(float freq, int pulse, int decimal, int bits) {
@@ -182,10 +189,12 @@ void switchTransmit(float freq, int pulse, int decimal, int bits) {
     Log.notice(F("  decimal: %d" CR), decimal);
     Log.notice(F("  bits %d" CR), bits);
 
-    rf.disableReceiver();
+    disableRX();
+
+    ELECHOUSE_cc1101.Init();
     ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-    //ELECHOUSE_cc1101.setMHZ(freq);
-    ELECHOUSE_cc1101.SetTx(freq);
+    ELECHOUSE_cc1101.setMHZ(freq);
+    ELECHOUSE_cc1101.SetTx();
 
     mySwitch.enableTransmit(config.transmitPin);
     mySwitch.setPulseLength(pulse);
@@ -218,7 +227,6 @@ void setup() {
     Serial.begin(115200);
     Log.begin(logLevel, &Serial);
 
-    ELECHOUSE_cc1101.Init();
     configSetup();
     rtlSetup();
 }
