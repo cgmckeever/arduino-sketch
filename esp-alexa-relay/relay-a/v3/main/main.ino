@@ -31,7 +31,7 @@ const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1};
 template<typename T>
 void debug(T &msg, bool newline = false) {
   DEBUG_MODE = true;
-  Serial.begin(112500);
+  Serial.begin(115200);
   DebugPrint(msg);
   if (newline) DebugPrintln(F(""));
   Serial.flush();
@@ -42,7 +42,7 @@ void debug(T &msg, bool newline = false) {
 //
 void configSetup() {
   DEBUG_MODE = true;
-  Serial.begin(112500);
+  Serial.begin(115200);
 
   // randomSeed(*(volatile uint32_t *)0x3FF20E44);
   // String sApName = "ESPRELAY-" + String(random(111, 999));
