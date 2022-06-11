@@ -12,6 +12,16 @@ rtl_433_ESP rf(-1);
 #include <RCSwitch.h>
 RCSwitch mySwitch = RCSwitch();
 
+#include <ArduinoQueue.h>
+struct switchCommand {
+    float freq;
+    int pulse;
+    int decimal;
+    int bits;
+};
+typedef struct switchCommand SwitchCommand;
+ArduinoQueue<switchCommand> switchCommandQueue(5);
+
 #define logLevel LOG_LEVEL_VERBOSE
 
 // params
@@ -144,12 +154,13 @@ void APICallback(WebServer *server) {
   server->on("/control", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(controlHTML, mimeHTML);
 
-    float freq = server->arg("freq").toFloat();
-    int pulse = server->arg("pulse").toInt();
-    int decimal = server->arg("decimal").toInt();
-    int bits = server->arg("bits").toInt();
+    SwitchCommand command;
+    command.freq = server->arg("freq").toFloat();
+    command.pulse = server->arg("pulse").toInt();
+    command.decimal = server->arg("decimal").toInt();
+    command.bits = server->arg("bits").toInt();
 
-    switchTransmit(freq, pulse, decimal, bits);
+    switchCommandQueue.enqueue(command);
   });
 
   setConfigDefaults();
@@ -182,26 +193,35 @@ void disableRX() {
     rf.disableReceiver();
 }
 
-void switchTransmit(float freq, int pulse, int decimal, int bits) {
-    Log.notice(F("Sending:" CR));
-    Log.notice(F("  freq: %F" CR), freq);
-    Log.notice(F("  pulse: %d" CR), pulse);
-    Log.notice(F("  decimal: %d" CR), decimal);
-    Log.notice(F("  bits %d" CR), bits);
-
+void processCommands() {
+  if (switchCommandQueue.itemCount() > 0) {
     disableRX();
+    mySwitch.enableTransmit(config.transmitPin);
+
+    while (switchCommandQueue.itemCount() > 0) {
+      struct switchCommand command = switchCommandQueue.dequeue();
+      switchTransmit(command);
+    }
+
+    mySwitch.disableTransmit();
+    enableRx();
+  }
+}
+
+void switchTransmit(struct switchCommand command) {
+    Log.notice(F("Sending:" CR));
+    Log.notice(F("  freq: %F" CR), command.freq);
+    Log.notice(F("  pulse: %d" CR), command.pulse);
+    Log.notice(F("  decimal: %d" CR), command.decimal);
+    Log.notice(F("  bits %d" CR), command.bits);
 
     ELECHOUSE_cc1101.Init();
     ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-    ELECHOUSE_cc1101.setMHZ(freq);
+    ELECHOUSE_cc1101.setMHZ(command.freq);
     ELECHOUSE_cc1101.SetTx();
 
-    mySwitch.enableTransmit(config.transmitPin);
-    mySwitch.setPulseLength(pulse);
-    mySwitch.send(decimal, bits);
-    mySwitch.disableTransmit();
-
-    enableRx();
+    mySwitch.setPulseLength(command.pulse);
+    mySwitch.send(command.decimal, command.bits);
 }
 
 void rtl433Callback(char* message) {
@@ -234,6 +254,7 @@ void setup() {
 void loop() {
     configManager.loop();
     rf.loop();
+    processCommands();
 }
 
 
