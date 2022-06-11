@@ -255,6 +255,11 @@ void loop() {
     configManager.loop();
     rf.loop();
     processCommands();
+
+    if (!configManager.wifiConnected()) {
+      WiFi.disconnect();
+      WiFi.reconnect();
+    }
 }
 
 
