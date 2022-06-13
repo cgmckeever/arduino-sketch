@@ -50,6 +50,9 @@ struct Metadata {
 
 char messageBuffer[messageBufferLen];
 
+unsigned long previousMillis = 0;
+unsigned long interval = 30000;
+
 // ConfigManager
 //
 void configSetup() {
@@ -256,9 +259,12 @@ void loop() {
     rf.loop();
     processCommands();
 
-    if (!configManager.wifiConnected()) {
+    unsigned long currentMillis = millis();
+    if (!configManager.wifiConnected() && (currentMillis - previousMillis >= interval)) {
       WiFi.disconnect();
       WiFi.reconnect();
+      previousMillis = currentMillis;
+      Log.notice(F("Wifi Reconnect" CR));
     }
 }
 
