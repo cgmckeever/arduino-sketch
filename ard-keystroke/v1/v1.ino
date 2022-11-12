@@ -5,7 +5,7 @@ const int shutdownCodes[] = { 128, 129, 130, 100};
 const int sleepCodes[] = { 128, 129, 130, 101};
 const int rebootCodes[] = { 128, 129, 130, 102};
 
-const int pressTime = 2000;
+const int pressTime = 100;
 
 const int rxLed = 17;
 const int txLed = 30;
