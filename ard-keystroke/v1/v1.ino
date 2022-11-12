@@ -1,9 +1,9 @@
 // https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
 //
 #include "Keyboard.h"
-const int shutdownCodes[] = { 128, 129, 130 };
-const int sleepCodes[] = { 132, 133, 134 };
-const int rebootCodes[] = { 130, 128, 129 };
+const int shutdownCodes[] = { 128, 129, 130, 100};
+const int sleepCodes[] = { 128, 129, 130, 101};
+const int rebootCodes[] = { 128, 129, 130, 102};
 
 const int pressTime = 2000;
 
