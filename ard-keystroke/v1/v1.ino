@@ -1,11 +1,11 @@
 // https://www.arduino.cc/reference/en/language/functions/usb/keyboard/keyboardmodifiers/
 //
 #include "Keyboard.h"
-const int shutdownCodes[] = { 128, 129, 130, 100};
-const int sleepCodes[] = { 128, 129, 130, 101};
-const int rebootCodes[] = { 128, 129, 130, 102};
+const int shutdownCodes[] = { 128, 129, 130, 100 };
+const int sleepCodes[] = { 128, 129, 130, 101 };
+const int rebootCodes[] = { 128, 129, 130, 102 };
 
-const int pressTime = 100;
+const int pressTime = 200;
 
 const int rxLed = 17;
 const int txLed = 30;
@@ -81,11 +81,13 @@ void buttonChanged(int buttonState, int pin) {
 }
 
 void keyAction(int codes[], int len) {
-  for (int code = 0; code < len; code++) {
+  int lastIndex = len - 1;
+  // listens in reverse order for some reason
+  for (int code = lastIndex; code >= 0; code--) {
     Keyboard.press(codes[code]);
   }
   delay(pressTime);
-  for (int code = 0; code < len; code++) {
+  for (int code = lastIndex; code >= 0; code--) {
     Keyboard.release(codes[code]);
   }
 }
