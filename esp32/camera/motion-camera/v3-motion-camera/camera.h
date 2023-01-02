@@ -1,17 +1,15 @@
-#include "esp_camera.h"
 #include "camera_pins.h"
 
-#include "fd_forward.h"
+#include "OV2640.h"
+OV2640 cam;
 
-void getSettings();
-
-bool cameraOK = false;
+bool cameraStatus = false;
 bool *cameraInUse = new bool(false);
 
 enum cameraModes { isReady, isStream, isCapture, isMotion };
 cameraModes *cameraMode = new cameraModes;
 
-bool initCamera() {
+camera_config_t getConfig() {
     camera_config_t cameraConfig;
 
     cameraConfig.ledc_channel = LEDC_CHANNEL_0;
@@ -40,11 +38,16 @@ bool initCamera() {
     cameraConfig.jpeg_quality = 10;
     cameraConfig.fb_count = 1;
 
-    cameraConfig.frame_size = FRAMESIZE_UXGA;
+    cameraConfig.frame_size = FRAMESIZE_VGA;
     cameraConfig.pixel_format = PIXFORMAT_JPEG;
 
-    cameraOK = esp_camera_init(&cameraConfig) == ESP_OK;
+    return cameraConfig;
+}
 
+bool initCamera() {
+    cameraStatus = cam.init(getConfig());
+
+    // camera class?
     sensor_t *s = esp_camera_sensor_get();
     s->set_aec_value(s, config.camera_exposure);
     s->set_exposure_ctrl(s, config.camera_exposure_control);
@@ -53,15 +56,20 @@ bool initCamera() {
     s->set_hmirror(s, config.camera_hmirror);
     s->set_raw_gma(s, config.camera_raw_gma);
 
+    // move these to camera class
     *cameraMode = isReady;
     *cameraInUse = false;
-    return cameraOK;
+
+    return cameraStatus;
 }
 
 void flash(bool on) {
-    gpio_pad_select_gpio(GPIO_NUM_4);
-    gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
+    // TODO add pinouts ?
+    if (HAS_FLASH) {
+        gpio_pad_select_gpio(GPIO_NUM_4);
+        gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT);
+        gpio_set_level(GPIO_NUM_4, on ? 1 : 0);
+    }
 }
 
 void cameraControl(cameraModes current) {
