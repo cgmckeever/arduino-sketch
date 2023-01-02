@@ -78,6 +78,10 @@ void capture(void* pvParameters) {
   sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
 
   for (;;) {
+    //  Only switch frames around if no frame is currently being streamed to a client
+    //  Wait on a semaphore until client operation completes
+    xSemaphoreTake(frameSync, portMAX_DELAY);
+
     size_t s = cam.run();
     taskYIELD();
 
@@ -90,10 +94,6 @@ void capture(void* pvParameters) {
 
     //  Copy current frame into local buffer
     memcpy(fbs[currentFrame], cam.getBuffer(), s);
-
-    //  Only switch frames around if no frame is currently being streamed to a client
-    //  Wait on a semaphore until client operation completes
-    xSemaphoreTake(frameSync, portMAX_DELAY);
 
     //  Do not allow interrupts while switching the current frame
     portENTER_CRITICAL(&xSemaphore);
@@ -118,7 +118,9 @@ void capture(void* pvParameters) {
       vTaskSuspend(NULL);
     } else {
       taskYIELD();
-      vTaskDelayUntil(&xLastWakeTime, xFrequency);
+      sensor_t *sensor = esp_camera_sensor_get();
+      int offset = sensor->status.framesize > 4 ? 3 : 1;
+      vTaskDelayUntil(&xLastWakeTime, (xFrequency * offset));
     }
   }
 }
@@ -216,11 +218,13 @@ void handleCapture(void) {
   if (client.connected()) {
     client.write(JHEADER, jhdLen);
 
+    xSemaphoreTake(frameSync, portMAX_DELAY);
     sensor_t *sensor = esp_camera_sensor_get();
     sensor->set_framesize(sensor, (framesize_t) config.captureFramesize);
     size_t len = cam.run();
     client.write((char*) cam.getBuffer(), len);
     sensor->set_framesize(sensor, (framesize_t) config.streamFramesize);
+    xSemaphoreGive(frameSync);
   }
 }
 
