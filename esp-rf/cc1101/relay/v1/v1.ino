@@ -7,7 +7,7 @@ ConfigManager configManager;
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 
 #include <rtl_433_ESP.h>
-rtl_433_ESP rf(-1);
+rtl_433_ESP rf;
 
 #include <RCSwitch.h>
 RCSwitch mySwitch = RCSwitch();
@@ -182,18 +182,29 @@ void rtlSetup() {
 }
 
 void enableRx() {
+    disableTX();
+
     ELECHOUSE_cc1101.Init();
     ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
     ELECHOUSE_cc1101.SetRx(config.frequency);
     ELECHOUSE_cc1101.setMHZ(config.frequency);
 
+    rf.initReceiver(config.receivePin, config.frequency);
     rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
-    rf.enableReceiver(config.receivePin);
+    rf.enableReceiver();
+
+    // mySwitch.enableRecieve(digitalPinToInterrupt(config.receivePin));
 }
 
 void disableRX() {
-    rf.enableReceiver(-1);
+    //rf.enableReceiver(-1);
     rf.disableReceiver();
+    mySwitch.disableReceive();
+}
+
+void disableTX() {
+    mySwitch.disableTransmit();
+    //rf.disableTransmit();
 }
 
 void processCommands() {
@@ -206,7 +217,7 @@ void processCommands() {
       switchTransmit(command);
     }
 
-    mySwitch.disableTransmit();
+    disableTX();
     enableRx();
   }
 }
