@@ -1,12 +1,9 @@
 #include <ArduinoLog.h>
 #include <Arduino.h>
+#include <HTTPClient.h>
 
 #include <ConfigManager.h>
 ConfigManager configManager;
-
-#include <HTTPClient.h>
-
-#include <main.h>
 
 #include <ArduinoQueue.h>
 struct switchCommand {
@@ -19,23 +16,25 @@ typedef struct switchCommand SwitchCommand;
 ArduinoQueue<switchCommand> switchCommandQueue(5);
 
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
-
 #include <rtl_433_ESP.h>
 rtl_433_ESP rf;
 
 #include <RCSwitch.h>
 RCSwitch mySwitch = RCSwitch();
 
+#include <main.h>
+
 #define logLevel LOG_LEVEL_VERBOSE
 
 // ConfigManger
 //
+const char *controlHTML = (char *)"/control.html";
 const char *settingsHTML = (char *)"/settings.html";
 const char *resetHTML = (char *)"/reset.html";
 const char *stylesCSS = (char *)"/styles.css";
 const char *mainJS = (char *)"/main.js";
 
-const char *controlHTML = (char *)"/control.html";
+
 
 const int deviceNameLen = 32;
 const int serverURLLen = 32;
@@ -81,18 +80,18 @@ void setConfigDefaults() {
 
   char firstChar = config.deviceName[0];
   if (firstChar == '\0' || config.deviceName == NULL || firstChar == '\xFF') {
-    strncpy(config.deviceName, "device", deviceNameLen);
+    strncpy(config.deviceName, "esp-device", deviceNameLen);
     requireSave = true;
   }
 
   firstChar = config.serverURL[0];
   if (firstChar == '\0' || config.serverURL == NULL || firstChar == '\xFF') {
-    strncpy(config.serverURL, "http://192.168.2.25:1880/", serverURLLen);
+    strncpy(config.serverURL, SERVER_URL, serverURLLen);
     requireSave = true;
   }
 
   if (float(config.frequency) < 0 || isnan(config.frequency)) {
-    config.frequency = 433.92;
+    config.frequency = RF_MODULE_FREQ;
     requireSave = true;
   }
 
@@ -112,6 +111,9 @@ void setConfigDefaults() {
 void printConfig() {
   Log.notice(F("Configuration" CR));
   Log.notice(F("Device Name : %s" CR), config.deviceName);
+  Log.notice(F("Rx Pin : %s" CR), String(config.receivePin));
+  Log.notice(F("Tx Pin : %s" CR), String(config.transmitPin));
+  Log.notice(F("Freq : %s" CR), String(config.frequency));
 }
 
 void serveAssets(WebServer *server) {
@@ -133,22 +135,6 @@ void APCallback(WebServer *server) {
 void APICallback(WebServer *server) {
   serveAssets(server);
 
-  server->on("/disconnect", HTTPMethod::HTTP_GET, [server](){
-    configManager.clearWifiSettings(false);
-  });
-
-  server->on("/reset", HTTPMethod::HTTP_GET, [server](){
-    configManager.streamFile(resetHTML, mimeHTML);
-    configManager.clearSettings(false);
-  });
-
-  server->on("/wipe", HTTPMethod::HTTP_GET, [server](){
-    configManager.streamFile(resetHTML, mimeHTML);
-    configManager.clearWifiSettings(false);
-    configManager.clearSettings(false);
-    ESP.restart();
-  });
-
   server->on("/config", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(settingsHTML, mimeHTML);
   });
@@ -163,6 +149,27 @@ void APICallback(WebServer *server) {
     command.bits = server->arg("bits").toInt();
 
     switchCommandQueue.enqueue(command);
+  });
+
+  server->on("/disconnect", HTTPMethod::HTTP_GET, [server](){
+    configManager.clearWifiSettings(false);
+  });
+
+  server->on("/reboot", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(controlHTML, mimeHTML);
+    ESP.restart();
+  });
+
+  server->on("/reset", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(resetHTML, mimeHTML);
+    configManager.clearSettings(false);
+  });
+
+  server->on("/wipe", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(resetHTML, mimeHTML);
+    configManager.clearWifiSettings(false);
+    configManager.clearSettings(false);
+    ESP.restart();
   });
 
   setConfigDefaults();
@@ -183,6 +190,15 @@ void rtlInit() {
     rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
     enableRx();
     Log.notice(F("****** RTL setup complete ******" CR));
+}
+
+void rfListen() {
+   if (mySwitch.available()) {
+      char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
+      mySwitch.resetAvailable();
+      Log.notice(F("Decoded: %s" CR), decoded);
+      messagePost("sensor", decoded);
+    }
 }
 
 void enableRx() {
@@ -210,27 +226,27 @@ void rtl433Callback(char* message) {
 }
 
 void enableTx() {
-  disableRx();
-  mySwitch.enableTransmit(config.transmitPin);
-  Log.notice(F("****** Tx Enabled ******" CR));
+    disableRx();
+    mySwitch.enableTransmit(config.transmitPin);
+    Log.notice(F("****** Tx Enabled ******" CR));
 }
 
 void disableTx() {
-  mySwitch.disableTransmit();
-  Log.notice(F("****** Tx Disabled ******" CR));
+    mySwitch.disableTransmit();
+    Log.notice(F("****** Tx Disabled ******" CR));
 }
 
 void processCommands() {
   if (switchCommandQueue.itemCount() > 0) {
       enableTx();
 
-    while (switchCommandQueue.itemCount() > 0) {
-      struct switchCommand command = switchCommandQueue.dequeue();
-      switchTransmit(command);
-    }
+      while (switchCommandQueue.itemCount() > 0) {
+        struct switchCommand command = switchCommandQueue.dequeue();
+        switchTransmit(command);
+      }
 
-    disableTx();
-    enableRx();
+      disableTx();
+      enableRx();
   }
 }
 
@@ -263,13 +279,7 @@ void setup() {
 void loop() {
     configManager.loop();
     rf.loop();
-
-    if (mySwitch.available()) {
-      char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
-      Log.notice(F("Decoded: %s" CR), decoded);
-      messagePost("sensor", decoded);
-      mySwitch.resetAvailable();
-    }
+    rfListen();
 
     unsigned long currentMillis = millis();
     if (!configManager.wifiConnected() && (currentMillis - previousMillis >= interval)) {
