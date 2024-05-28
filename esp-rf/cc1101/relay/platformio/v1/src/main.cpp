@@ -195,7 +195,6 @@ void enableRx() {
 
     rf.enableReceiver();
     mySwitch.enableReceive(config.receivePin);
-
     Log.notice(F("****** Rx Enabled ******" CR));
 }
 
@@ -208,18 +207,6 @@ void disableRx() {
 void rtl433Callback(char* message) {
     Log.notice(F("Received message: %s" CR), message);
     messagePost("sensor", message);
-}
-
-void messagePost(String path, char* message) {
-    HTTPClient http;
-    WiFiClient client;
-
-    String url = String(config.serverURL);
-    url.trim();
-
-    http.begin(client, url + path);
-    http.addHeader("Content-Type", "application/json");
-    int httpResponseCode = http.POST(message);
 }
 
 void enableTx() {
@@ -293,4 +280,16 @@ void loop() {
     } else {
       processCommands();
     }
+}
+
+void messagePost(String path, char* message) {
+    HTTPClient http;
+    WiFiClient client;
+
+    String url = String(config.serverURL);
+    url.trim();
+
+    http.begin(client, url + path);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(message);
 }
