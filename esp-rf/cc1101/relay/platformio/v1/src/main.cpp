@@ -223,8 +223,14 @@ void rtl433Callback(char* message) {
     messagePost("sensor", message);
 }
 
-void enableTx() {
+void enableTx(float freq) {
     disableRx();
+
+    ELECHOUSE_cc1101.Init();
+    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+    ELECHOUSE_cc1101.setMHZ(freq);
+    ELECHOUSE_cc1101.SetTx();
+
     mySwitch.enableTransmit(config.transmitPin);
     Log.notice(F("****** Tx Enabled ******" CR));
 }
@@ -236,14 +242,10 @@ void disableTx() {
 
 void processCommands() {
   if (switchCommandQueue.itemCount() > 0) {
-      enableTx();
-
       while (switchCommandQueue.itemCount() > 0) {
         struct switchCommand command = switchCommandQueue.dequeue();
         switchTransmit(command);
       }
-
-      disableTx();
       enableRx();
   }
 }
@@ -255,10 +257,7 @@ void switchTransmit(struct switchCommand command) {
     Log.notice(F("  decimal: %d" CR), command.decimal);
     Log.notice(F("  bits %d" CR), command.bits);
 
-    ELECHOUSE_cc1101.Init();
-    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-    ELECHOUSE_cc1101.setMHZ(command.freq);
-    ELECHOUSE_cc1101.SetTx();
+    enableTx(command.freq);
 
     mySwitch.setPulseLength(command.pulse);
     mySwitch.send(command.decimal, command.bits);
