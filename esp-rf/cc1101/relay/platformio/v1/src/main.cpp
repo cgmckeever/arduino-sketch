@@ -6,8 +6,25 @@ ConfigManager configManager;
 
 #include <HTTPClient.h>
 
-
 #include <main.h>
+
+#include <ArduinoQueue.h>
+struct switchCommand {
+    float freq;
+    int pulse;
+    int decimal;
+    int bits;
+};
+typedef struct switchCommand SwitchCommand;
+ArduinoQueue<switchCommand> switchCommandQueue(5);
+
+#include <ELECHOUSE_CC1101_SRC_DRV.h>
+
+#include <rtl_433_ESP.h>
+rtl_433_ESP rf;
+
+#include <RCSwitch.h>
+RCSwitch mySwitch = RCSwitch();
 
 #define logLevel LOG_LEVEL_VERBOSE
 
@@ -21,7 +38,6 @@ const char *mainJS = (char *)"/main.js";
 const char *controlHTML = (char *)"/control.html";
 
 const int deviceNameLen = 32;
-const int messageBufferLen = 512;
 const int serverURLLen = 32;
 
 struct Config {
@@ -81,12 +97,12 @@ void setConfigDefaults() {
   }
 
   if (int(config.receivePin) < 0) {
-    config.receivePin = 27;
+    config.receivePin = RF_MODULE_GDO2;
     requireSave = true;
   }
 
   if (int(config.transmitPin) < 0) {
-    config.transmitPin = 26;
+    config.transmitPin = RF_MODULE_GDO0;
     requireSave = true;
   }
 
@@ -140,13 +156,13 @@ void APICallback(WebServer *server) {
   server->on("/control", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(controlHTML, mimeHTML);
 
-    //SwitchCommand command;
-    //command.freq = server->arg("freq").toFloat();
-    //command.pulse = server->arg("pulse").toInt();
-    //command.decimal = server->arg("decimal").toInt();
-    //command.bits = server->arg("bits").toInt();
+    SwitchCommand command;
+    command.freq = server->arg("freq").toFloat();
+    command.pulse = server->arg("pulse").toInt();
+    command.decimal = server->arg("decimal").toInt();
+    command.bits = server->arg("bits").toInt();
 
-    //switchCommandQueue.enqueue(command);
+    switchCommandQueue.enqueue(command);
   });
 
   setConfigDefaults();
@@ -155,19 +171,119 @@ void APICallback(WebServer *server) {
 
 
 // RTL 
+//
+const int messageBufferLen = 512;
+char messageBuffer[messageBufferLen];
 
+void rtlInit() {
+    Log.notice(F(" " CR));
+    Log.notice(F("****** RTL setup begin ******" CR));
+    Log.notice(F("Frequency: %F" CR), config.frequency);
+    rf.initReceiver(config.receivePin, config.frequency);
+    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
+    enableRx();
+    Log.notice(F("****** RTL setup complete ******" CR));
+}
+
+void enableRx() {
+    disableTx(); 
+
+    ELECHOUSE_cc1101.Init();
+    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+    ELECHOUSE_cc1101.SetRx(config.frequency);
+    ELECHOUSE_cc1101.setMHZ(config.frequency);
+
+    rf.enableReceiver();
+    mySwitch.enableReceive(config.receivePin);
+
+    Log.notice(F("****** Rx Enabled ******" CR));
+}
+
+void disableRx() {
+    rf.disableReceiver();
+    mySwitch.disableReceive();
+    Log.notice(F("****** Rx Disabled ******" CR));
+}
+
+void rtl433Callback(char* message) {
+    Log.notice(F("Received message: %s" CR), message);
+    messagePost("sensor", message);
+}
+
+void messagePost(String path, char* message) {
+    HTTPClient http;
+    WiFiClient client;
+
+    String url = String(config.serverURL);
+    url.trim();
+
+    http.begin(client, url + path);
+    http.addHeader("Content-Type", "application/json");
+    int httpResponseCode = http.POST(message);
+}
+
+void enableTx() {
+  disableRx();
+  mySwitch.enableTransmit(config.transmitPin);
+  Log.notice(F("****** Tx Enabled ******" CR));
+}
+
+void disableTx() {
+  mySwitch.disableTransmit();
+  Log.notice(F("****** Tx Disabled ******" CR));
+}
+
+void processCommands() {
+  if (switchCommandQueue.itemCount() > 0) {
+      enableTx();
+
+    while (switchCommandQueue.itemCount() > 0) {
+      struct switchCommand command = switchCommandQueue.dequeue();
+      switchTransmit(command);
+    }
+
+    disableTx();
+    enableRx();
+  }
+}
+
+void switchTransmit(struct switchCommand command) {
+    Log.notice(F("Sending:" CR));
+    Log.notice(F("  freq: %F" CR), command.freq);
+    Log.notice(F("  pulse: %d" CR), command.pulse);
+    Log.notice(F("  decimal: %d" CR), command.decimal);
+    Log.notice(F("  bits %d" CR), command.bits);
+
+    ELECHOUSE_cc1101.Init();
+    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+    ELECHOUSE_cc1101.setMHZ(command.freq);
+    ELECHOUSE_cc1101.SetTx();
+
+    mySwitch.setPulseLength(command.pulse);
+    mySwitch.send(command.decimal, command.bits);
+}
+
+// Main
+//
 void setup() {
     Serial.begin(115200);
     Log.begin(logLevel, &Serial);
 
     configSetup();
-    //rtlSetup();
+    rtlInit();
 }
 
 void loop() {
     configManager.loop();
-    //rf.loop();
-    
+    rf.loop();
+
+    if (mySwitch.available()) {
+      char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
+      Log.notice(F("Decoded: %s" CR), decoded);
+      messagePost("sensor", decoded);
+      mySwitch.resetAvailable();
+    }
+
     unsigned long currentMillis = millis();
     if (!configManager.wifiConnected() && (currentMillis - previousMillis >= interval)) {
       WiFi.disconnect();
@@ -175,6 +291,6 @@ void loop() {
       previousMillis = currentMillis;
       Log.notice(F("Wifi Reconnect" CR));
     } else {
-      //processCommands();
+      processCommands();
     }
 }
