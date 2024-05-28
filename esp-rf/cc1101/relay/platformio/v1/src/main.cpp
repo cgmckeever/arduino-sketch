@@ -34,8 +34,6 @@ const char *resetHTML = (char *)"/reset.html";
 const char *stylesCSS = (char *)"/styles.css";
 const char *mainJS = (char *)"/main.js";
 
-
-
 const int deviceNameLen = 32;
 const int serverURLLen = 32;
 
