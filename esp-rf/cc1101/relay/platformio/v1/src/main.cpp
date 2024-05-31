@@ -71,6 +71,9 @@ void configSetup() {
   configManager.setAPCallback(APCallback);
   configManager.setAPICallback(APICallback);
   configManager.begin(config);
+
+  setConfigDefaults();
+  printConfig();
 }
 
 void setConfigDefaults() {
@@ -89,7 +92,7 @@ void setConfigDefaults() {
   }
 
   if (float(config.frequency) < 0 || isnan(config.frequency)) {
-    config.frequency = RF_MODULE_FREQ;
+    config.frequency = RF_MODULE_FREQUENCY;
     requireSave = true;
   }
 
@@ -107,11 +110,13 @@ void setConfigDefaults() {
 }
 
 void printConfig() {
+  Log.notice(F("====================" CR));
   Log.notice(F("Configuration" CR));
   Log.notice(F("Device Name : %s" CR), config.deviceName);
   Log.notice(F("Rx Pin : %s" CR), String(config.receivePin));
   Log.notice(F("Tx Pin : %s" CR), String(config.transmitPin));
   Log.notice(F("Freq : %s" CR), String(config.frequency));
+  Log.notice(F("" CR));
 }
 
 void serveAssets(WebServer *server) {
@@ -126,8 +131,6 @@ void serveAssets(WebServer *server) {
 
 void APCallback(WebServer *server) {
     serveAssets(server);
-    setConfigDefaults();
-    printConfig();
 }
 
 void APICallback(WebServer *server) {
@@ -160,18 +163,17 @@ void APICallback(WebServer *server) {
 
   server->on("/reset", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(resetHTML, mimeHTML);
+    Log.notice(F("" CR));
+    Log.notice(F("====================" CR));
     configManager.clearSettings(false);
   });
 
   server->on("/wipe", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(resetHTML, mimeHTML);
-    configManager.clearWifiSettings(false);
     configManager.clearSettings(false);
+    configManager.clearWifiSettings(false);
     ESP.restart();
   });
-
-  setConfigDefaults();
-  printConfig();
 }
 
 
@@ -185,18 +187,9 @@ void rtlInit() {
     Log.notice(F("****** RTL setup begin ******" CR));
     Log.notice(F("Frequency: %F" CR), config.frequency);
     rf.initReceiver(config.receivePin, config.frequency);
-    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
     enableRx();
+    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
     Log.notice(F("****** RTL setup complete ******" CR));
-}
-
-void rfListen() {
-   if (mySwitch.available()) {
-      char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
-      mySwitch.resetAvailable();
-      Log.notice(F("Decoded: %s" CR), decoded);
-      messagePost("sensor", decoded);
-    }
 }
 
 void enableRx() {
@@ -208,14 +201,24 @@ void enableRx() {
     ELECHOUSE_cc1101.setMHZ(config.frequency);
 
     rf.enableReceiver();
-    mySwitch.enableReceive(config.receivePin);
-    Log.notice(F("****** Rx Enabled ******" CR));
+    //mySwitch.enableReceive(config.receivePin);
+    Log.notice(F("****** Rx Enabled Pin %s ******" CR), String(config.receivePin));
 }
 
 void disableRx() {
     rf.disableReceiver();
-    mySwitch.disableReceive();
+    //mySwitch.disableReceive();
     Log.notice(F("****** Rx Disabled ******" CR));
+}
+
+void rfListen() {
+  return;
+  if (mySwitch.available()) {
+    char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
+    mySwitch.resetAvailable();
+    Log.notice(F("Decoded: %s" CR), decoded);
+    messagePost("sensor", decoded);
+  }
 }
 
 void rtl433Callback(char* message) {
@@ -226,13 +229,13 @@ void rtl433Callback(char* message) {
 void enableTx(float freq) {
     disableRx();
 
-    ELECHOUSE_cc1101.Init();
-    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-    ELECHOUSE_cc1101.setMHZ(freq);
-    ELECHOUSE_cc1101.SetTx();
+    //ELECHOUSE_cc1101.Init();
+    //ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
+    //ELECHOUSE_cc1101.setMHZ(freq);
+    //ELECHOUSE_cc1101.SetTx();
 
     mySwitch.enableTransmit(config.transmitPin);
-    Log.notice(F("****** Tx Enabled ******" CR));
+    Log.notice(F("****** Tx Enabled Pin %s ******" CR), String(config.transmitPin));
 }
 
 void disableTx() {
@@ -266,7 +269,7 @@ void switchTransmit(struct switchCommand command) {
 // Main
 //
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(921600);
     Log.begin(logLevel, &Serial);
 
     configSetup();
