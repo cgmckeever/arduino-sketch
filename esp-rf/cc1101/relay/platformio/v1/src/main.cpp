@@ -15,7 +15,6 @@ struct switchCommand {
 typedef struct switchCommand SwitchCommand;
 ArduinoQueue<switchCommand> switchCommandQueue(5);
 
-#include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <rtl_433_ESP.h>
 rtl_433_ESP rf;
 
@@ -43,6 +42,7 @@ struct Config {
   float frequency;
   int8_t receivePin;
   int8_t transmitPin;
+  bool decodeMode;
 } config;
 
 struct Metadata {
@@ -66,6 +66,7 @@ void configSetup() {
   configManager.addParameter("frequency", &config.frequency);
   configManager.addParameter("receivePin", &config.receivePin);
   configManager.addParameter("transmitPin", &config.transmitPin);
+  configManager.addParameter("decodeMode", &config.decodeMode);
 
   // Callbacks
   configManager.setAPCallback(APCallback);
@@ -152,6 +153,14 @@ void APICallback(WebServer *server) {
     switchCommandQueue.enqueue(command);
   });
 
+  server->on("/decode", HTTPMethod::HTTP_GET, [server](){
+    configManager.streamFile(controlHTML, mimeHTML);
+    config.decodeMode = !config.decodeMode;
+    configManager.save();
+    disableRx();
+    enableRx();
+  });
+
   server->on("/disconnect", HTTPMethod::HTTP_GET, [server](){
     configManager.clearWifiSettings(false);
   });
@@ -195,24 +204,24 @@ void rtlInit() {
 void enableRx() {
     disableTx(); 
 
-    ELECHOUSE_cc1101.Init();
-    ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-    ELECHOUSE_cc1101.SetRx(config.frequency);
-    ELECHOUSE_cc1101.setMHZ(config.frequency);
-
-    rf.enableReceiver();
-    //mySwitch.enableReceive(config.receivePin);
+    if (config.decodeMode) {
+      rf.enableReceiver();
+      Log.notice(F("****** Rx Decode Mode ******" CR));
+    } else {
+      mySwitch.enableReceive(config.receivePin);
+      Log.notice(F("****** Rx Listen Mode ******" CR));
+    }
+    
     Log.notice(F("****** Rx Enabled Pin %s ******" CR), String(config.receivePin));
 }
 
 void disableRx() {
     rf.disableReceiver();
-    //mySwitch.disableReceive();
+    mySwitch.disableReceive();
     Log.notice(F("****** Rx Disabled ******" CR));
 }
 
 void rfListen() {
-  return;
   if (mySwitch.available()) {
     char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
     mySwitch.resetAvailable();
@@ -228,11 +237,6 @@ void rtl433Callback(char* message) {
 
 void enableTx(float freq) {
     disableRx();
-
-    //ELECHOUSE_cc1101.Init();
-    //ELECHOUSE_cc1101.SpiStrobe(CC1101_SIDLE);
-    //ELECHOUSE_cc1101.setMHZ(freq);
-    //ELECHOUSE_cc1101.SetTx();
 
     mySwitch.enableTransmit(config.transmitPin);
     Log.notice(F("****** Tx Enabled Pin %s ******" CR), String(config.transmitPin));
