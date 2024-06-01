@@ -222,7 +222,7 @@ void disableRx() {
 }
 
 void rfListen() {
-  if (mySwitch.available()) {
+  if (!config.decodeMode && mySwitch.available()) {
     char* decoded = decode(mySwitch.getReceivedValue(), mySwitch.getReceivedBitlength(), mySwitch.getReceivedDelay(), mySwitch.getReceivedRawdata(),mySwitch.getReceivedProtocol());
     mySwitch.resetAvailable();
     Log.notice(F("Decoded: %s" CR), decoded);
@@ -282,16 +282,18 @@ void setup() {
 
 void loop() {
     configManager.loop();
-    rf.loop();
-    rfListen();
-
+    
     unsigned long currentMillis = millis();
-    if (!configManager.wifiConnected() && (currentMillis - previousMillis >= interval)) {
-      WiFi.disconnect();
-      WiFi.reconnect();
-      previousMillis = currentMillis;
-      Log.notice(F("Wifi Reconnect" CR));
+    if (!configManager.wifiConnected()) {
+      if ((currentMillis - previousMillis >= interval)) {
+        WiFi.disconnect();
+        WiFi.reconnect();
+        previousMillis = currentMillis;
+        Log.notice(F("Wifi Reconnect" CR));
+      }
     } else {
+      rf.loop();
+      rfListen();
       processCommands();
     }
 }
