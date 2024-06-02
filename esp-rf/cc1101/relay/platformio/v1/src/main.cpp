@@ -155,7 +155,15 @@ void APICallback(WebServer *server) {
 
   server->on("/decode", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(controlHTML, mimeHTML);
-    config.decodeMode = !config.decodeMode;
+
+    float freq = server->arg("freq").toFloat();
+    if (freq > 0) config.frequency = freq;
+
+    int decode = server->arg("decode").toFloat();
+    bool mode = !config.decodeMode;
+    if (decode == 0) mode = false;
+    if (decode == 1) mode = true;
+    config.decodeMode = mode;
     configManager.save();
     disableRx();
     enableRx();
@@ -194,18 +202,18 @@ char messageBuffer[messageBufferLen];
 void rtlInit() {
     Log.notice(F(" " CR));
     Log.notice(F("****** RTL setup begin ******" CR));
-    Log.notice(F("Frequency: %F" CR), config.frequency);
-    rf.initReceiver(config.receivePin, config.frequency);
     enableRx();
-    rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
     Log.notice(F("****** RTL setup complete ******" CR));
 }
 
 void enableRx() {
     disableTx(); 
+    Log.notice(F("Frequency: %F" CR), config.frequency);
+    rf.initReceiver(config.receivePin, config.frequency);
 
     if (config.decodeMode) {
       rf.enableReceiver();
+      rf.setCallback(rtl433Callback, messageBuffer, messageBufferLen);
       Log.notice(F("****** Rx Decode Mode ******" CR));
     } else {
       mySwitch.enableReceive(config.receivePin);
@@ -282,7 +290,7 @@ void setup() {
 
 void loop() {
     configManager.loop();
-    
+
     unsigned long currentMillis = millis();
     if (!configManager.wifiConnected()) {
       if ((currentMillis - previousMillis >= interval)) {
