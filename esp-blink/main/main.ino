@@ -3,8 +3,8 @@ ESP8266 Blink
 Blink the blue LED on the ESP8266 module
 */
 
-// #define LED 1   // LED ESP-01
-#define LED 2  // LED NodeMCU
+#define LED 1   // LED ESP-01
+//#define LED 2  // LED NodeMCU / ESP-01s (LED_BUILTIN)
 
 
 void setup() {
