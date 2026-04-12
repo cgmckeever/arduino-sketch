@@ -159,11 +159,11 @@ void APICallback(WebServer *server) {
     float freq = server->arg("freq").toFloat();
     if (freq > 0) config.frequency = freq;
 
-    int decode = server->arg("decode").toFloat();
+    int decode = server->arg("decode").toInt();
     bool mode = !config.decodeMode;
-    if (decode == 0) mode = false;
-    if (decode == 1) mode = true;
+    mode = (decode == 0) ? false : true;
     config.decodeMode = mode;
+
     configManager.save();
     disableRx();
     enableRx();
@@ -273,7 +273,6 @@ void switchTransmit(struct switchCommand command) {
     Log.notice(F("  bits %d" CR), command.bits);
 
     enableTx(command.freq);
-
     mySwitch.setPulseLength(command.pulse);
     mySwitch.send(command.decimal, command.bits);
 }
