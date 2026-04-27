@@ -12,17 +12,7 @@ $( document ).ready(function() {
                if ( target.is("input") ) {
                 target.val(value);
                } else {
-                if (key == "isTriggered") {
-                  if (value) {
-                    value = "On";
-                    var button = $('button[value="on"]')
-                  } else {
-                    value = "Off"
-                    var button = $('button[value="off"]')
-                  }
-                  button.css("color", "grey");
-                }
-                target.html(value);
+
                }
              }
            });
@@ -34,10 +24,16 @@ $( document ).ready(function() {
       deviceName: {
         required: true
       },
-      inchingDelay: {
+      serverURL: {
         required: true
       },
-      ledPin: {
+      frequency: {
+        required: true
+      },
+      receivePin: {
+        required: true
+      },
+      transmitPin: {
         required: true
       }
     }

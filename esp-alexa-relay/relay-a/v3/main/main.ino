@@ -1,10 +1,6 @@
-#include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <fauxmoESP.h>
 #include <ConfigManager.h>
 #include <arduino-timer.h>
 
-fauxmoESP fauxmo;
 ConfigManager configManager;
 
 Timer<1, millis, void *> timer;
@@ -29,13 +25,13 @@ struct Metadata {
 
 
 // Hex relay commands
-const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};  
-const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1}; 
+const byte relON[] = {0xA0, 0x01, 0x01, 0xA2};
+const byte relOFF[] = {0xA0, 0x01, 0x00, 0xA1};
 
 template<typename T>
 void debug(T &msg, bool newline = false) {
   DEBUG_MODE = true;
-  Serial.begin(112500);
+  Serial.begin(115200);
   DebugPrint(msg);
   if (newline) DebugPrintln(F(""));
   Serial.flush();
@@ -46,7 +42,7 @@ void debug(T &msg, bool newline = false) {
 //
 void configSetup() {
   DEBUG_MODE = true;
-  Serial.begin(112500);
+  Serial.begin(115200);
 
   // randomSeed(*(volatile uint32_t *)0x3FF20E44);
   // String sApName = "ESPRELAY-" + String(random(111, 999));
@@ -94,7 +90,7 @@ void printConfig() {
   debug("Configuration: ");
   debug(config.deviceName, true);
 
-  debug("led Pin");
+  debug("LED Pin: ");
   debug(config.ledPin, true);
 
   debug("Inching Delay: ");
@@ -105,6 +101,15 @@ void APCallback(WebServer *server) {
     serveAssets(server);
     setConfigDefaults();
     printConfig();
+
+   server->on("/relay", HTTPMethod::HTTP_GET, [server](){
+     configManager.streamFile(relayHTML, mimeHTML);
+     if (tolower(server->arg("state")[1]) == 'n') {
+       toggleState(true);
+     } else {
+       toggleState(false);
+     }
+   });
 }
 
 void APICallback(WebServer *server) {
@@ -125,7 +130,7 @@ void APICallback(WebServer *server) {
     configManager.clearSettings(false);
     ESP.restart();
   });
-  
+
   server->on("/config", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(settingsHTML, mimeHTML);
   });
@@ -138,10 +143,9 @@ void APICallback(WebServer *server) {
       toggleState(false);
     }
   });
-  
+
   setConfigDefaults();
   printConfig();
-  fauxmoConfig();
   led(HIGH);
 }
 
@@ -149,47 +153,21 @@ void serveAssets(WebServer *server) {
   server->on("/styles.css", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(stylesCSS, mimeCSS);
   });
-  
+
   server->on("/main.js", HTTPMethod::HTTP_GET, [server](){
     configManager.streamFile(mainJS, mimeJS);
   });
 }
 
-// FauxMo
-//
-void fauxmoConfig() {
-  fauxmo.createServer(true);
-  fauxmo.setPort(80);  
-  fauxmo.enable(true);
-  fauxmo.addDevice(config.deviceName); 
-
-  debug("Device discoverable as: ");
-  debug(config.deviceName, true);
-
-  fauxmo.onSetState([](unsigned char deviceId, const char * deviceName, 
-                    bool state, unsigned char value) {
-
-    DebugPrint("State: ");
-    DebugPrintln(state);
-    DebugPrint("Value: ");
-    DebugPrintln(value);
-
-    toggleState(state);
- 
-  });
-
-  debug("ESP Setup Complete", true);
-}
-
-// Relay 
+// Relay
 //
 void toggleState(bool state) {
   if (state) {
     relayOn();
-      
+
     if (config.inchingDelay > 0) {
       timer.in(config.inchingDelay, timerCallback);
-    } 
+    }
   } else {
     relayOff();
   }
@@ -233,9 +211,9 @@ void led(int state) {
   digitalWrite(config.ledPin, state);
 }
 
-// Main 
+// Main
 //
-void setup() { 
+void setup() {
   relayOff();
   delay(100);
   relayOff();
@@ -249,6 +227,5 @@ void setup() {
 
 void loop() {
   configManager.loop();
-  fauxmo.handle();
   timer.tick();
 }
